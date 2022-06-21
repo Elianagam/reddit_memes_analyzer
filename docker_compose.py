@@ -171,19 +171,27 @@ REDUCE_SENTIMETS = """
       - QUEUE_SEND=post_sentiments_queue
 """
 
+def add_filters(num, init_txt):
+  filter_txt = ""
+  wk = 0
+  for i in range(1,num+1):      
+      filter_txt += init_txt.format(i, i, wk)
+      if wk == 0:
+          wk +=1
+      elif wk == 1:
+          wk -=1
+  return filter_txt
+
+
 def main():
     filter_exchange = int(sys.argv[1])
     workers_join_comments = int(sys.argv[2])
     workers_join_posts = int(sys.argv[3])
     chunksize = int(sys.argv[4])
 
-    filters_c = ""
-    filters_p = ""
-    for i in range(1,workers_join_comments+1):
-        filters_c += COMENTS_FILTERS.format(i, i, i)
 
-    for i in range(1,workers_join_posts+1):
-        filters_p += POSTS_FILTER.format(i, i, i)
+    filters_c = add_filters(workers_join_comments, COMENTS_FILTERS)
+    filters_p = add_filters(workers_join_posts, POSTS_FILTER)
     
     filters_s = ""
     filters_ss = ""

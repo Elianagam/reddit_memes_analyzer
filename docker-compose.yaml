@@ -25,7 +25,7 @@ services:
       - FILE_POSTS=/data/posts.csv
       - COMMETS_QUEUE=comments_queue 
       - POSTS_QUEUE=posts_queue
-      - SEND_WORKERS_COMMENTS=2
+      - SEND_WORKERS_COMMENTS=4
       - SEND_WORKERS_POSTS=3
       - STUDENTS_QUEUE=student_url_queue
       - AVG_QUEUE=posts_avg_score_queue
@@ -44,7 +44,7 @@ services:
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY=1
+      - WORKER_KEY=0
 
   comments_filter_columns_2:
     container_name: comments_filter_columns_2
@@ -58,7 +58,35 @@ services:
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY=2
+      - WORKER_KEY=1
+
+  comments_filter_columns_3:
+    container_name: comments_filter_columns_3
+    image: comments_filter_columns:latest
+    entrypoint: python3 /main.py
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+    links: 
+      - rabbitmq
+    environment:
+      - QUEUE_RECV=comments_queue
+      - QUEUE_SEND=comments_filter_queue
+      - WORKER_KEY=0
+
+  comments_filter_columns_4:
+    container_name: comments_filter_columns_4
+    image: comments_filter_columns:latest
+    entrypoint: python3 /main.py
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+    links: 
+      - rabbitmq
+    environment:
+      - QUEUE_RECV=comments_queue
+      - QUEUE_SEND=comments_filter_queue
+      - WORKER_KEY=1
 
   
   comments_filter_student_1:
@@ -178,7 +206,7 @@ services:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=1
+      - WORKER_KEY=0
 
   posts_filter_columns_2:
     container_name: posts_filter_columns_2
@@ -193,7 +221,7 @@ services:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=2
+      - WORKER_KEY=1
 
   posts_filter_columns_3:
     container_name: posts_filter_columns_3
@@ -208,7 +236,7 @@ services:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=3
+      - WORKER_KEY=0
 
 
   posts_avg_score:
@@ -240,6 +268,6 @@ services:
       - QUEUE_SEND_STUDENTS=cmt_pst_join_st_queue
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
       - CHUNKSIZE=400
-      - RECV_WORKERS_COMMENTS=2
+      - RECV_WORKERS_COMMENTS=4
       - RECV_WORKERS_POSTS=3
       - SEND_WORKERS=2
