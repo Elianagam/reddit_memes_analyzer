@@ -5,7 +5,7 @@ RUN pip install --upgrade pip && pip3 install pika
 ENV HOST=rabbitmq
 ENV PORT=5672
 
-ENV FILE_COMMETS=data/comments.py
+ENV FILE_COMMENTS=data/comments.py
 ENV FILE_POSTS=data/post.csv
 ENV CHUNKSIZE=400
 ENV POSTS_QUEUE=client_posts_queue

@@ -9,6 +9,11 @@ docker-client-image:
 	docker build -f ./client/Dockerfile -t "client:latest" .
 .PHONY: docker-client-image
 
+docker-client-run:
+	# docker run -it --network=reddit_memes_analyzer_rabbitmq "client:latest"
+	docker-compose -f docker-compose-client.yaml up -d --build --remove-orphans
+.PHONY: docker-client-run
+
 docker-system-image:
 	docker build -f ./receiver/Dockerfile -t "receiver:latest" .
 	docker build -f ./comments_filter_columns/Dockerfile -t "comments_filter_columns:latest" .
