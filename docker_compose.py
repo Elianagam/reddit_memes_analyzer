@@ -10,9 +10,9 @@ services:
       - 15672:15672
       - 5672:5672
 
-  client:
-    container_name: client
-    image: client:latest
+  receiver:
+    container_name: receiver
+    image: receiver:latest
     entrypoint: python3 /main.py
     restart: on-failure
     depends_on:
