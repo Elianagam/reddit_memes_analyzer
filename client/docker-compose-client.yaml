@@ -9,6 +9,8 @@ services:
       - FILE_POSTS=/data/posts.csv
       - CHUNKSIZE=400
       - POSTS_QUEUE=client_posts_queue
+      - COMMENTS_QUEUE=client_comments_queue
+      - FILE_COMMENTS=/data/comments.csv
     networks:
       - rabbitmq
 

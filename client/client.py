@@ -12,39 +12,41 @@ class Client:
         self,
         file_posts,
         posts_queue,
+        file_comments,
+        comments_queue,
         chunksize, 
     ):
         logging.info("INIT")
-        #self.file_comments = file_comments
+        self.file_comments = file_comments
         self.file_posts = file_posts
         self.chunksize = chunksize
 
         self.conn_posts = Connection(queue_name=posts_queue)
-        #self.conn_comments = Connection(queue_name=comments_queue, host=host, port=port)
+        self.conn_comments = Connection(queue_name=comments_queue, conn=conn_posts)
 
         #self.students_recved = []
         #self.conn_recv_students = Connection(queue_name=students_queue)
         #self.conn_recv_avg = Connection(queue_name=avg_queue, conn=self.conn_recv_students)
         #self.conn_recv_image = Connection(queue_name=image_queue, conn=self.conn_recv_students)
 
-        #self.comments_sender = Process(target=self.__send_comments())
+        self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.conn_posts.close()
-        #self.conn_comments.close()
+        self.conn_comments.close()
         self.conn_recv_students.close()
         sys.exit(0)
 
 
     def start(self):
         self.posts_sender.start()
-        #self.comments_sender.run()
+        self.comments_sender.start()
 
         #self.__recv_sinks()
 
-        #self.comments_sender.join()
+        self.comments_sender.join()
         self.posts_sender.join()
     
 
@@ -55,7 +57,6 @@ class Client:
                   "domain", "url", "selftext", "title", "score"]
 
         self.__read(self.file_posts, self.conn_posts, fields)
-
 
     def __read(self, file_name, conn, fields):
         with open(file_name, mode='r') as csv_file:
@@ -70,15 +71,18 @@ class Client:
             
             if len(chunk) != 0:
                 conn.send(body=json.dumps(chunk))
-                conn.send(body=json.dumps({"end": True}))
-"""
+        logging.info(f"CHUNK {file_name} - {len(chunk)}")
+        conn.send(body=json.dumps({"end": True}))
 
-def __send_comments(self):
+    def __send_comments(self):
+        logging.info("SEND COMMENTS DATA")
         fields = ["type","id", "subreddit.id", "subreddit.name",
                   "subreddit.nsfw", "created_utc", "permalink", 
                   "body", "sentiment", "score"]
 
         self.__read(self.file_comments, self.conn_comments, fields)
+"""
+
     def __recv_sinks(self):
         self.conn_recv_students.recv(self.__callback_students, start_consuming=False)
         self.conn_recv_avg.recv(self.__callback, start_consuming=False)

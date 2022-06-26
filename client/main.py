@@ -12,6 +12,8 @@ def main():
             "FILE_POSTS",
             "CHUNKSIZE",
             "POSTS_QUEUE",
+            "COMMENTS_QUEUE",
+            "FILE_COMMENTS",
         ])
         initialize_log()
 
@@ -21,6 +23,8 @@ def main():
             file_posts=config_params["FILE_POSTS"],        
             posts_queue=config_params["POSTS_QUEUE"],
             chunksize=int(config_params["CHUNKSIZE"]),
+            file_comments=config_params["FILE_COMMENTS"],
+            comments_queue=config_params["COMMENTS_QUEUE"],
         )
         client.start()
     except Exception as e:
