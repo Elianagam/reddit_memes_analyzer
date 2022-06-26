@@ -11,8 +11,13 @@ docker-client-image:
 
 docker-client-run:
 	# docker run -it --network=reddit_memes_analyzer_rabbitmq "client:latest"
-	docker-compose -f docker-compose-client.yaml up -d --build --remove-orphans
+	docker-compose -f ./client/docker-compose-client.yaml up -d --build --remove-orphans
+	docker-compose -f ./client/docker-compose-client.yaml logs -f
 .PHONY: docker-client-run
+
+docker-client-logs:
+	docker-compose -f ./client/docker-compose-client.yaml logs -f
+.PHONY: docker-client-logs
 
 docker-system-image:
 	docker build -f ./receiver/Dockerfile -t "receiver:latest" .

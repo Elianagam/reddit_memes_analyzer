@@ -7,19 +7,21 @@ import json
 class Connection:
     def __init__(self, queue_name='', exchange_name='', bind=False, 
         conn=None, exchange_type='fanout', routing_key='', host='', port=''):
-        if not conn:
-            time.sleep(15)
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-            self.channel = self.connection.channel()
-        else:
+        if conn != None:
             self.connection = conn.connection
             self.channel = conn.channel
-        if host != '' and port != '':
+        elif host != '' and port != '':
+            logging.info(f"CONECT HOST {HOST} PORT {PORT}")
             credentials = pika.PlainCredentials('guest', 'guest')
             parameters = pika.ConnectionParameters(host, port, '/', credentials)
 
             connection = pika.BlockingConnection(parameters)
             channel = connection.channel()
+        else:
+            time.sleep(15)
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+            self.channel = self.connection.channel()      
+
 
         self.queue_name = queue_name
         self.exchange_name = exchange_name
