@@ -22,7 +22,7 @@ class Client:
         self.chunksize = chunksize
 
         self.conn_posts = Connection(queue_name=posts_queue)
-        self.conn_comments = Connection(queue_name=comments_queue, conn=conn_posts)
+        self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
 
         #self.students_recved = []
         #self.conn_recv_students = Connection(queue_name=students_queue)
@@ -71,8 +71,9 @@ class Client:
             
             if len(chunk) != 0:
                 conn.send(body=json.dumps(chunk))
-        logging.info(f"CHUNK {file_name} - {len(chunk)}")
-        conn.send(body=json.dumps({"end": True}))
+
+            logging.info(f"CHUNK {file_name} - {len(chunk)}")
+            conn.send(body=json.dumps({"end": True}))
 
     def __send_comments(self):
         logging.info("SEND COMMENTS DATA")

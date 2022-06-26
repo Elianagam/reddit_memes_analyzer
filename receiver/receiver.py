@@ -27,7 +27,7 @@ class Receiver:
         sys.exit(0)
 
     def start(self):
-        self.client_conn_recv.recv(self.__callback_post)
+        self.client_conn_recv.recv(self.__callback_post, start_consuming=False)
         self.client_conn_recv_c.recv(self.__callback_comment)
 
     def __callback_post(self, ch, method, properties, body):
