@@ -39,14 +39,13 @@ class Client:
 
 
     def start(self):
-        self.posts_sender.run()
+        self.posts_sender.start()
         #self.comments_sender.run()
 
         #self.__recv_sinks()
 
         #self.comments_sender.join()
         self.posts_sender.join()
-
     
 
     def __send_posts(self):
@@ -71,6 +70,7 @@ class Client:
             
             if len(chunk) != 0:
                 conn.send(body=json.dumps(chunk))
+                conn.send(body=json.dumps({"end": True}))
 """
 
 def __send_comments(self):

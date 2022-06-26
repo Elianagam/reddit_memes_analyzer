@@ -12,8 +12,6 @@ def main():
             "FILE_POSTS",
             "CHUNKSIZE",
             "POSTS_QUEUE",
-            "HOST",
-            "PORT",
         ])
         initialize_log()
 
@@ -23,8 +21,6 @@ def main():
             file_posts=config_params["FILE_POSTS"],        
             posts_queue=config_params["POSTS_QUEUE"],
             chunksize=int(config_params["CHUNKSIZE"]),
-            host=config_params["HOST"],
-            port=int(config_params["PORT"]),
         )
         client.start()
     except Exception as e:

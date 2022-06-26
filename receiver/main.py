@@ -12,7 +12,7 @@ def main():
             "SEND_WORKERS_COMMENTS", "SEND_WORKERS_POSTS", "RECV_POSTS_QUEUE", "RECV_COMMENTS_QUEUE"])
         initialize_log()
 
-        logging.debug("Client configuration: {}".format(config_params))
+        logging.info("Client configuration: {}".format(config_params))
         recv = Receiver(
             comments_queue=config_params["COMMETS_QUEUE"],
             posts_queue=config_params["POSTS_QUEUE"],

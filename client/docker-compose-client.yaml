@@ -10,10 +10,10 @@ services:
       - CHUNKSIZE=400
       - POSTS_QUEUE=client_posts_queue
     networks:
-      - reddit_memes_analyzer_rabbitmq
+      - rabbitmq
 
 networks:
-  reddit_memes_analyzer_rabbitmq: 
+  rabbitmq: 
     external: 
       name: reddit_memes_analyzer_rabbitmq
 
