@@ -11,9 +11,9 @@ services:
       context: src
       dockerfile: Dockerfile
     deploy:
-      replicas: 2
+      replicas: 4
     environment:
-      - REPLICAS=2
+      - REPLICAS=4
       - LOG_LEVEL=DEBUG
     depends_on:
       - rabbit

@@ -21,8 +21,9 @@ from multiprocessing import Process
 from enum import Enum
 
 SLEEP_SECONDS = 1
-HEARTBEAT_DELAY = 5
-HEARTBEAT_LIMIT = HEARTBEAT_DELAY * 2
+ELECTION_LIMIT_PER_NODE = 2
+HEARTBEAT_DELAY = 1
+HEARTBEAT_LIMIT = HEARTBEAT_DELAY * 3
 
 logger = logging.getLogger('carlitos')
 logger.setLevel(logging.getLevelName(LOG_LEVEL))
@@ -53,6 +54,7 @@ class ClusterNode(object):
         self.queue = None
         self.leader = False
         self.heartbeat_process = None
+        self.healthcheck_process = None
         self.last_hb_processed = None
         self.checkpoint = None
         self.leader_id = None
@@ -80,11 +82,14 @@ class ClusterNode(object):
         self.channel.queue_bind(queue='health_check', exchange='health_check', routing_key='health_check')
         self.channel.exchange_declare(exchange='election', exchange_type='topic')
         self.queue = f'node_{self.node_id}'
-        for i in range(1, NODE_QUANTITY+1):
-            queue_name = f'node_{i}'
-            print(f"Creando {queue_name}")
-            self.channel.queue_declare(queue=queue_name)
-            self.channel.queue_bind(queue=queue_name, exchange='election', routing_key=str(i))
+
+        self.channel.queue_declare(queue=self.queue, exclusive=True)
+        self.channel.queue_bind(queue=self.queue, exchange='election', routing_key=str(self.node_id))
+        #for i in range(1, NODE_QUANTITY+1):
+        #    queue_name = f'node_{i}'
+        #    print(f"Creando {queue_name}")
+        #    self.channel.queue_declare(queue=queue_name)
+        #    self.channel.queue_bind(queue=queue_name, exchange='election', routing_key=str(i))
 
     def check_init(self):
         if self.node_id == NODE_QUANTITY:
@@ -103,7 +108,8 @@ class ClusterNode(object):
             if i > self.node_id:
                 yield i
 
-    def send_to(self, ids, message):
+    def send_to(self, ids, message, channel=None):
+        channel = channel if channel else self.channel
         for i in ids:
             self.channel.basic_publish(exchange='election', routing_key=str(i), body=json.dumps(message))
 
@@ -129,21 +135,26 @@ class ClusterNode(object):
     def init_healthcheck(self):
         print("Iniciando heartbeat")
         conn = connect_retry()
-        self.heartbeat_process = Process(target=self.health_check, args=(conn,))
-        self.heartbeat_process.daemon = True
-        self.heartbeat_process.start()
+        self.healthcheck_process = Process(target=self.health_check, args=(conn,))
+        self.healthcheck_process.daemon = True
+        self.healthcheck_process.start()
 
-    def heartbeat(self):
+    def heartbeat(self, conn):
+        channel = conn.channel()
         ids = list(self.all_ids)
         while True:
-            msg = f'heartbeat:{self.node_id}:{time.time()}'
-            self.send_to(ids, msg)
+            msg = {
+                'type': 'heartbeat'
+            }
+            #msg = f'heartbeat:{self.node_id}:{time.time()}'
+            self.send_to(ids, msg, channel=channel)
             logger.debug("Sending heartbeat")
             time.sleep(HEARTBEAT_DELAY)
 
     def init_heartbeat(self):
         print("Iniciando heartbeat")
-        self.heartbeat_process = Process(target=self.heartbeat)
+        conn = connect_retry()
+        self.heartbeat_process = Process(target=self.heartbeat, args=(conn,))
         self.heartbeat_process.daemon = True
         self.heartbeat_process.start()
 
@@ -157,7 +168,7 @@ class ClusterNode(object):
     def check_heartbeat(self):
         now = time.time()
         delta = (now - self.last_hb_processed) if self.last_hb_processed else None
-        logging.debug(f"El delta es {delta}")
+        logger.debug(f"El delta es {delta}")
         if delta and delta > HEARTBEAT_LIMIT:
             print("El lider se murio xD")
 
@@ -172,6 +183,36 @@ class ClusterNode(object):
         logger.info("Por hacer healthcheck")
         self.init_healthcheck()
 
+    def demote(self):
+        """
+        Era el lider y ahora ya no, tengo que terminar con los subprocessos
+        """
+        self.heartbeat_process.terminate()
+        self.heartbeat_process.join()
+
+        self.healthcheck_process.terminate()
+        self.healthcheck_process.join()
+
+        self.heartbeat_process = None
+        self.healthcheck_process = None
+
+    def set_checkpoint(self):
+        self.checkpoint = time.time()
+
+    def get_delta(self):
+        return time.time() - self.checkpoint if self.checkpoint else -1
+
+    def exceeded_election_limit(self):
+        """
+        La función verifica si se sobrepasó el tiempo dado para la elección o no
+        """
+        distance_to_top = NODE_QUANTITY - self.node_id
+        allowed_timeout = ELECTION_LIMIT_PER_NODE * distance_to_top
+        return self.get_delta() > allowed_timeout
+
+    def exceeded_heartbeat_limit(self):
+        return self.get_delta() > HEARTBEAT_LIMIT
+
     def start_election(self):
         msg = {
             'type': 'election_init',
@@ -181,17 +222,40 @@ class ClusterNode(object):
         for major_id in majors:
             self.dataset[int(major_id)] = {'status': 'sent', 'ts': time.time()}
         self.send_to(majors, msg)
-        logging.info("De 'start_election' paso a 'waiting_ok'")
+        logger.info("De 'start_election' paso a 'waiting_ok'")
         self.state = NodeState.ELECTION_WAITING_OK
+        self.set_checkpoint()
 
     def set_winner(self, node_id):
         logger.info("Setting %d as winner", node_id)
+        if self.leader:
+            logger.warning("HAGO UN DEMOTE >>>>")
+            self.demote()
         # Blanqueo mi data
         self.dataset = {}
-        self.checkpoint = time.time()
+        self.leader = False
         logger.debug("Paso a OK, ya se setó un lider")
         self.state = NodeState.OK
+        self.set_checkpoint()
         self.leader_id = int(node_id)
+
+    def process_victory(self, msg):
+        """
+        Process a Victory message
+        """
+        winner = msg['node_id']
+        self.set_winner(winner)
+
+    def process_election(self, msg):
+        source = msg['source']
+        # Algun nodo inició una elección, le respondo que OK e inicio mi propia elección
+        msg = {
+            'type': 'election_ok',
+            'source': self.node_id,
+        }
+        logger.info("Recibí election de %d y respondo ok", source)
+        self.send_to([source, ], msg)
+        self.start_election()
 
     ### Definir las funciones que van a interceder acorde el estado
     def s_unknown(self, msg):
@@ -208,27 +272,60 @@ class ClusterNode(object):
             msgtype = msg['type']
             if msgtype == 'election_ok':
                 source = int(msg['source'])
+                logger.debug("Recibí un ok de %d", source)
                 self.dataset.pop(source, None)
                 if not self.dataset:
                     # Ya recibí el OK de todos mis superiores, me quedo esperando el victory
-                    self.checkpoint = time.time()
-                    logging.debug("De election_oks paso a waiting_victory")
+                    self.set_checkpoint()
+                    logger.debug("De election_oks paso a waiting_victory")
                     self.state = NodeState.ELECTION_WAITING_VICTORY
+                if self.exceeded_election_limit():
+                    self.proclamate_leader()
             if msgtype == 'victory':
-                winner =msg['node_id']
-                self.set_winner(winner)
+                logger.info("Espero mensaje de OKs y recibi uno de victoria %r", msg)
+                self.process_victory(msg)
+        else:
+            # No recibi ningun mensaje, timeouteó el consume, debo chequear si se expiró el tiempo
+            # de espera para los mensajes de los nodos 'superiores'
+            if self.exceeded_election_limit():
+                self.proclamate_leader()
 
     def s_election_victory(self, msg):
         """
-        Espero la respuesta de un victory
+        Espero la respuesta de un victory. Llego acá porque inicié una elección y ya recibí todos
+        los OKs
         """
-        pass
+        if msg:
+            msgtype = msg['type']
+            if msgtype == 'victory':
+                logger.info("Espero mensaje de victoria y recibi uno %r", msg)
+                self.process_victory(msg)
+        else:
+            # No recibi ningun mensaje, timeouteó el consume, debo chequear si se expiró el tiempo
+            # de espera para los mensajes de los nodos 'superiores'
+            if self.exceeded_election_limit():
+                self.proclamate_leader()
 
     def s_ok(self, msg):
         """
-        Cuando está todo ok
+        Cuando está todo
+         - Espera Heartbeat
+         - Procesa elecciones de otros nodos
         """
-        logger.debug("Espero un heartbeat")
+        if msg:
+            msgtype = msg['type']
+            if msgtype == 'election_init':
+                self.process_election(msg)
+            elif msgtype == 'heartbeat':
+                self.set_checkpoint()
+            elif msgtype == 'victory':
+                self.process_victory(msg)
+        elif not self.leader:
+            # Me fijo cuando fue el ultimo heartbeat que recibi
+            if self.exceeded_heartbeat_limit():
+                logger.warning("Se perdieron los heartbeats, inicio una elección")
+                self.start_election()
+
     ###
 
     def first_cycle(self):
