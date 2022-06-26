@@ -9,6 +9,8 @@ services:
     ports:
       - 15672:15672
       - 5672:5672
+    networks:
+      - rabbitmq
 
   receiver:
     container_name: receiver
@@ -19,19 +21,15 @@ services:
       - rabbitmq
     links: 
       - rabbitmq
-    volumes:
-      - ./data:/data
     environment:
-      - CHUNKSIZE={}
-      - FILE_COMMETS=/data/comments.csv
-      - FILE_POSTS=/data/posts.csv
       - COMMETS_QUEUE=comments_queue 
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS={}
       - SEND_WORKERS_POSTS={}
-      - STUDENTS_QUEUE=student_url_queue
-      - AVG_QUEUE=posts_avg_score_queue
-      - IMAGE_QUEUE=post_avg_sentiments_queue
+      - RECV_POSTS_QUEUE=client_posts_queue
+      - RECV_COMMENTS_QUEUE=client_comments_queue
+    networks:
+      - rabbitmq
 
   <COMMENTS_FILTER_COLUMNS>
   <COMMENTS_FILTER_STUDENTS>
@@ -53,6 +51,8 @@ services:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 
   <POSTS_FILTER_COLUMNS>
 
@@ -69,6 +69,8 @@ services:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 
   join_comments_with_posts:
     container_name: join_comments_with_posts
@@ -88,6 +90,15 @@ services:
       - RECV_WORKERS_COMMENTS={}
       - RECV_WORKERS_POSTS={}
       - SEND_WORKERS={}
+    networks:
+      - rabbitmq
+
+networks:
+  rabbitmq:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
 """
 
 COMENTS_FILTERS = """
@@ -104,6 +115,8 @@ COMENTS_FILTERS = """
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
       - WORKER_KEY={}
+    networks:
+      - rabbitmq
 """
 
 FILTER_STUDENTS = """
@@ -120,6 +133,8 @@ FILTER_STUDENTS = """
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 """
 
 FILTER_SCORE_STUDENTS = """
@@ -137,6 +152,8 @@ FILTER_SCORE_STUDENTS = """
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE={}
+    networks:
+      - rabbitmq
 """
 
 POSTS_FILTER = """
@@ -154,6 +171,8 @@ POSTS_FILTER = """
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - WORKER_KEY={}
+    networks:
+      - rabbitmq
 """
 
 REDUCE_SENTIMETS = """
@@ -169,6 +188,8 @@ REDUCE_SENTIMETS = """
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+    networks:
+      - rabbitmq
 """
 
 def add_filters(num, init_txt):
@@ -201,7 +222,7 @@ def main():
         filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize)
         reduce_se += REDUCE_SENTIMETS.format(x,x)
 
-    compose = INIT_DOCKER.format(chunksize, workers_join_comments, workers_join_posts,
+    compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts,
       filter_exchange, workers_join_posts, chunksize, workers_join_comments, 
       workers_join_posts, filter_exchange) \
                   .replace("<COMMENTS_FILTER_COLUMNS>", filters_c) \
