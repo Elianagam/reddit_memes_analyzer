@@ -35,5 +35,5 @@ class Receiver:
         if "end" in recv:
             logging.info(f"* * * [RECEIVER END] {recv}")
         else:
-            logging.info(f"* * * [RECEIVER RECV] {recv}")
+            logging.info(f"* * * [RECEIVER RECV] {len(recv)}")
             self.conn_posts.send(json.dumps(recv))

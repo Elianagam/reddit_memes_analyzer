@@ -6,21 +6,14 @@ services:
     entrypoint: python3 /main.py
     restart: on-failure
     environment:
-     # - FILE_COMMENTS=/data/comments.py
-      - FILE_POSTS=/data/post.csv
+      - FILE_POSTS=/data/posts.csv
       - CHUNKSIZE=400
       - POSTS_QUEUE=client_posts_queue
-      #- COMMETS_QUEUE=client_comments_queue
-      #- STUDENTS_QUEUE=student_url_queue
-      #- AVG_QUEUE=posts_avg_score_queue
-      #- IMAGE_QUEUE=post_avg_sentiments_queue
-      - HOST=rabbitmq
-      - PORT=5627
     networks:
-      - rabbitmq
+      - reddit_memes_analyzer_rabbitmq
 
 networks:
-  rabbitmq: 
+  reddit_memes_analyzer_rabbitmq: 
     external: 
       name: reddit_memes_analyzer_rabbitmq
 

@@ -19,6 +19,11 @@ docker-client-logs:
 	docker-compose -f ./client/docker-compose-client.yaml logs -f
 .PHONY: docker-client-logs
 
+docker-client-down:
+	docker-compose -f ./client/docker-compose-client.yaml stop -t 2
+	docker-compose -f ./client/docker-compose-client.yaml down
+.PHONY: docker-client-down
+
 docker-system-image:
 	docker build -f ./receiver/Dockerfile -t "receiver:latest" .
 	docker build -f ./comments_filter_columns/Dockerfile -t "comments_filter_columns:latest" .

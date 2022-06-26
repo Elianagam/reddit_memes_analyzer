@@ -9,16 +9,17 @@ from common.connection import Connection
 
 class Client:
     def __init__(
+        self,
         file_posts,
         posts_queue,
-        chunksize, host, port
+        chunksize, 
     ):
         logging.info("INIT")
         #self.file_comments = file_comments
         self.file_posts = file_posts
         self.chunksize = chunksize
 
-        self.conn_posts = Connection(queue_name=posts_queue, host=host, port=port)
+        self.conn_posts = Connection(queue_name=posts_queue)
         #self.conn_comments = Connection(queue_name=comments_queue, host=host, port=port)
 
         #self.students_recved = []

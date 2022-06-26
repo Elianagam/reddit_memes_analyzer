@@ -11,7 +11,7 @@ class Connection:
             self.connection = conn.connection
             self.channel = conn.channel
         elif host != '' and port != '':
-            logging.info(f"CONECT HOST {HOST} PORT {PORT}")
+            logging.info(f"CONECT HOST {host} PORT {port}")
             credentials = pika.PlainCredentials('guest', 'guest')
             parameters = pika.ConnectionParameters(host, port, '/', credentials)
 
