@@ -14,6 +14,9 @@ def main():
             "POSTS_QUEUE",
             "COMMENTS_QUEUE",
             "FILE_COMMENTS",
+            "STUDENTS_QUEUE",
+            "AVG_QUEUE",
+            "IMAGE_QUEUE",
         ])
         initialize_log()
 
@@ -25,6 +28,10 @@ def main():
             chunksize=int(config_params["CHUNKSIZE"]),
             file_comments=config_params["FILE_COMMENTS"],
             comments_queue=config_params["COMMENTS_QUEUE"],
+            students_queue=config_params["STUDENTS_QUEUE"],
+            avg_queue=config_params["AVG_QUEUE"],
+            image_queue=config_params["IMAGE_QUEUE"],
+
         )
         client.start()
     except Exception as e:

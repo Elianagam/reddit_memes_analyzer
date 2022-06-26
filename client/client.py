@@ -14,7 +14,10 @@ class Client:
         posts_queue,
         file_comments,
         comments_queue,
-        chunksize, 
+        chunksize,
+        students_queue,
+        avg_queue,
+        image_queue
     ):
         logging.info("INIT")
         self.file_comments = file_comments
@@ -24,10 +27,10 @@ class Client:
         self.conn_posts = Connection(queue_name=posts_queue)
         self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
 
-        #self.students_recved = []
-        #self.conn_recv_students = Connection(queue_name=students_queue)
-        #self.conn_recv_avg = Connection(queue_name=avg_queue, conn=self.conn_recv_students)
-        #self.conn_recv_image = Connection(queue_name=image_queue, conn=self.conn_recv_students)
+        self.students_recved = []
+        self.conn_recv_students = Connection(queue_name=students_queue)
+        self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.conn_recv_students)
+        self.conn_recv_image = Connection(queue_name=image_queue, conn=self.conn_recv_students)
 
         self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
@@ -44,7 +47,7 @@ class Client:
         self.posts_sender.start()
         self.comments_sender.start()
 
-        #self.__recv_sinks()
+        self.__recv_sinks()
 
         self.comments_sender.join()
         self.posts_sender.join()
@@ -82,7 +85,6 @@ class Client:
                   "body", "sentiment", "score"]
 
         self.__read(self.file_comments, self.conn_comments, fields)
-"""
 
     def __recv_sinks(self):
         self.conn_recv_students.recv(self.__callback_students, start_consuming=False)
@@ -105,5 +107,7 @@ class Client:
         if "end" in sink_recv:
             return
         else:
-            logging.info(f"* * * [CLIENT RECV] {sink_recv.keys()}")
-"""
+            if "posts_score_avg" in sink_recv:
+                logging.info(f"* * * [CLIENT RECV] {sink_recv}")
+            else:
+                logging.info(f"* * * [CLIENT RECV] {sink_recv.keys()}")

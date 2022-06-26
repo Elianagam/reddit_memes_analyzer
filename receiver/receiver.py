@@ -15,13 +15,15 @@ class Receiver:
 
         #self.students_recved = []
         self.client_conn_recv = Connection(queue_name=recv_post_queue)
-        self.client_conn_recv_c = Connection(queue_name=recv_comments_queue)
+        self.client_conn_recv_c = Connection(queue_name=recv_comments_queue, conn=self.client_conn_recv)
+        
         self.conn_comments = Connection(queue_name=comments_queue)
         self.conn_posts = Connection(queue_name=posts_queue)
 
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
+        self.client_conn_recv.close()
         self.conn_posts.close()
         self.conn_comments.close()
         sys.exit(0)
@@ -34,18 +36,18 @@ class Receiver:
         recv = json.loads(body)
         if "end" in recv:
             for i in range(self.send_workers_posts):
-                logging.info(f"* * * [RECEIVER END] {recv}")
+                logging.info(f"* * * [RECEIVER POST END] {recv}")
                 self.conn_posts.send(json.dumps(recv))
         else:
-            logging.info(f"* * * [RECEIVER RECV] {len(recv)}")
+            logging.info(f"* * * [RECEIVER POST RECV] {len(recv)}")
             self.conn_posts.send(json.dumps(recv))
 
     def __callback_comment(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
             for i in range(self.send_workers_comments):
-                logging.info(f"* * * [RECEIVER END] {recv}")
+                logging.info(f"* * * [RECEIVER COMMENTS END] {recv}")
                 self.conn_comments.send(json.dumps(recv))
         else:
-            logging.info(f"* * * [RECEIVER RECV] {len(recv)}")
+            logging.info(f"* * * [RECEIVER COMMENTS RECV] {len(recv)}")
             self.conn_comments.send(json.dumps(recv))
