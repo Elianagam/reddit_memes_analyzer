@@ -114,7 +114,6 @@ COMENTS_FILTERS = """
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY={}
     networks:
       - rabbitmq
 """
@@ -170,7 +169,6 @@ POSTS_FILTER = """
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY={}
     networks:
       - rabbitmq
 """
@@ -194,13 +192,8 @@ REDUCE_SENTIMETS = """
 
 def add_filters(num, init_txt):
   filter_txt = ""
-  wk = 0
   for i in range(1,num+1):      
-      filter_txt += init_txt.format(i, i, wk)
-      if wk == 0:
-          wk +=1
-      elif wk == 1:
-          wk -=1
+      filter_txt += init_txt.format(i, i)
   return filter_txt
 
 
