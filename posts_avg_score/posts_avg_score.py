@@ -32,7 +32,7 @@ class PostsAvgScore:
                 avg = self.__calculate_avg()
                 self.conn_send.send(json.dumps({"posts_score_avg": avg}))
                 self.conn_send.send(json.dumps(posts))
-            return
+                self.end_recv = 0
         else:
             self.__sum_score(posts)
 
