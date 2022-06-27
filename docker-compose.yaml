@@ -20,13 +20,13 @@ services:
     volumes:
       - ./data:/data
     environment:
-      - CHUNKSIZE=400
+      - CHUNKSIZE=1
       - FILE_COMMETS=/data/comments.csv
       - FILE_POSTS=/data/posts.csv
       - COMMETS_QUEUE=comments_queue 
       - POSTS_QUEUE=posts_queue
-      - SEND_WORKERS_COMMENTS=2
-      - SEND_WORKERS_POSTS=3
+      - SEND_WORKERS_COMMENTS=1
+      - SEND_WORKERS_POSTS=1
       - STUDENTS_QUEUE=student_url_queue
       - AVG_QUEUE=posts_avg_score_queue
       - IMAGE_QUEUE=post_avg_sentiments_queue
@@ -46,20 +46,6 @@ services:
       - QUEUE_SEND=comments_filter_queue
       - WORKER_KEY=1
 
-  comments_filter_columns_2:
-    container_name: comments_filter_columns_2
-    image: comments_filter_columns:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=comments_queue
-      - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY=2
-
   
   comments_filter_student_1:
     container_name: comments_filter_student_1
@@ -73,21 +59,7 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
-      - RECV_WORKERS=2
-
-  comments_filter_student_2:
-    container_name: comments_filter_student_2
-    image: comments_filter_student:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=cmt_pst_join_st_queue
-      - QUEUE_SEND=posts_student_queue
-      - RECV_WORKERS=2
+      - RECV_WORKERS=1
 
   
   posts_filter_score_gte_avg_1:
@@ -103,39 +75,11 @@ services:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
-      - CHUNKSIZE=400
-
-  posts_filter_score_gte_avg_2:
-    container_name: posts_filter_score_gte_avg_2
-    image: posts_filter_score_gte_avg:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV_AVG=posts_avg_score_queue
-      - QUEUE_RECV_STUDENTS=posts_student_queue
-      - QUEUE_SEND=student_url_queue
-      - CHUNKSIZE=400
+      - CHUNKSIZE=1
 
   
   posts_reduce_avg_sentiment_1:
     container_name: posts_reduce_avg_sentiment_1
-    image: posts_reduce_avg_sentiment:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=cmt_pst_join_se_queue
-      - QUEUE_SEND=post_sentiments_queue
-
-  posts_reduce_avg_sentiment_2:
-    container_name: posts_reduce_avg_sentiment_2
     image: posts_reduce_avg_sentiment:latest
     entrypoint: python3 /main.py
     restart: on-failure
@@ -162,7 +106,7 @@ services:
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
-      - RECV_WORKERS=2
+      - RECV_WORKERS=1
 
   
   posts_filter_columns_1:
@@ -180,36 +124,6 @@ services:
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - WORKER_KEY=1
 
-  posts_filter_columns_2:
-    container_name: posts_filter_columns_2
-    image: posts_filter_columns:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=posts_queue
-      - QUEUE_SEND_JOIN=posts_for_join_queue
-      - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=2
-
-  posts_filter_columns_3:
-    container_name: posts_filter_columns_3
-    image: posts_filter_columns:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=posts_queue
-      - QUEUE_SEND_JOIN=posts_for_join_queue
-      - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=3
-
 
   posts_avg_score:
     container_name: posts_avg_score
@@ -223,7 +137,7 @@ services:
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
-      - RECV_WORKERS=3
+      - RECV_WORKERS=1
 
   join_comments_with_posts:
     container_name: join_comments_with_posts
@@ -239,7 +153,22 @@ services:
       - QUEUE_RECV_POSTS=posts_for_join_queue
       - QUEUE_SEND_STUDENTS=cmt_pst_join_st_queue
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
-      - CHUNKSIZE=400
-      - RECV_WORKERS_COMMENTS=2
-      - RECV_WORKERS_POSTS=3
-      - SEND_WORKERS=2
+      - CHUNKSIZE=1
+      - RECV_WORKERS_COMMENTS=1
+      - RECV_WORKERS_POSTS=1
+      - SEND_WORKERS=1
+  
+  healthchecker:
+    build:
+      context: .
+      dockerfile: health_check/Dockerfile
+    deploy:
+      replicas: 4
+    environment:
+      - REPLICAS=4
+    depends_on:
+      - rabbitmq
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./persistence/:/tmp/persistence/
+

@@ -88,6 +88,7 @@ services:
       - RECV_WORKERS_COMMENTS={}
       - RECV_WORKERS_POSTS={}
       - SEND_WORKERS={}
+  <HEALTH_CHECK>
 """
 
 COMENTS_FILTERS = """
@@ -171,11 +172,28 @@ REDUCE_SENTIMETS = """
       - QUEUE_SEND=post_sentiments_queue
 """
 
+HEALTH_CHECKER = """
+  healthchecker:
+    build:
+      context: .
+      dockerfile: health_check/Dockerfile
+    deploy:
+      replicas: {replicas}
+    environment:
+      - REPLICAS={replicas}
+    depends_on:
+      - rabbitmq
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./persistence/:/tmp/persistence/
+"""
+
 def main():
     filter_exchange = int(sys.argv[1])
     workers_join_comments = int(sys.argv[2])
     workers_join_posts = int(sys.argv[3])
     chunksize = int(sys.argv[4])
+    healthccheck = int(sys.argv[5])
 
     filters_c = ""
     filters_p = ""
@@ -188,6 +206,8 @@ def main():
     filters_s = ""
     filters_ss = ""
     reduce_se = ""
+    health_check_s = HEALTH_CHECKER.format(replicas=healthccheck)
+
     for x in range(1,filter_exchange+1):
         filters_s += FILTER_STUDENTS.format(x, x, filter_exchange)
         filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize)
@@ -201,6 +221,7 @@ def main():
                   .replace("<POST_FILTER_SCORE_GTE_AVG>", filters_ss) \
                   .replace("<POSTS_FILTER_COLUMNS>", filters_p) \
                   .replace("<POST_REDUCE_AVG_SENTIMETS>", reduce_se) \
+                  .replace("<HEALTH_CHECK>", health_check_s) \
 
     with open("docker-compose.yaml", "w") as compose_file:
         compose_file.write(compose)
