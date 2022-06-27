@@ -1,7 +1,9 @@
 # Client build
 
 ```
-docker build -t client .
+make docke-client-image
 
-docker run -it --network=rabbitmq client
+make docker-client-run
+
+make docker-client-down
 ```
