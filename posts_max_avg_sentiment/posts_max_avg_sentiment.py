@@ -28,7 +28,7 @@ class PostsMaxAvgSentiment:
             self.end_recv += 1
             if self.end_recv == self.recv_workers:
                 self.__end_recv(posts)
-            return
+                self.end_recv = 0
         else:
             self.__get_max_avg_sentiment(posts)
 

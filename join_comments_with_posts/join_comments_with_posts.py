@@ -61,6 +61,7 @@ class JoinCommentsWithPosts:
                 # Send end msg to n workers
                 for i in range(self.send_workers):
                     self.__send_data(readed)
+                self.finish = {"posts": 0, "comments": 0}
             return True
         return False
 

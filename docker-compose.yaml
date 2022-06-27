@@ -7,29 +7,27 @@ services:
     ports:
       - 15672:15672
       - 5672:5672
+    networks:
+      - rabbitmq
 
-  client:
-    container_name: client
-    image: client:latest
+  receiver:
+    container_name: receiver
+    image: receiver:latest
     entrypoint: python3 /main.py
     restart: on-failure
     depends_on:
       - rabbitmq
     links: 
       - rabbitmq
-    volumes:
-      - ./data:/data
     environment:
-      - CHUNKSIZE=400
-      - FILE_COMMETS=/data/comments.csv
-      - FILE_POSTS=/data/posts.csv
       - COMMETS_QUEUE=comments_queue 
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS=2
-      - SEND_WORKERS_POSTS=3
-      - STUDENTS_QUEUE=student_url_queue
-      - AVG_QUEUE=posts_avg_score_queue
-      - IMAGE_QUEUE=post_avg_sentiments_queue
+      - SEND_WORKERS_POSTS=2
+      - RECV_POSTS_QUEUE=client_posts_queue
+      - RECV_COMMENTS_QUEUE=client_comments_queue
+    networks:
+      - rabbitmq
 
   
   comments_filter_columns_1:
@@ -44,7 +42,8 @@ services:
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY=1
+    networks:
+      - rabbitmq
 
   comments_filter_columns_2:
     container_name: comments_filter_columns_2
@@ -58,7 +57,8 @@ services:
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY=2
+    networks:
+      - rabbitmq
 
   
   comments_filter_student_1:
@@ -74,6 +74,8 @@ services:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+    networks:
+      - rabbitmq
 
   comments_filter_student_2:
     container_name: comments_filter_student_2
@@ -88,6 +90,8 @@ services:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+    networks:
+      - rabbitmq
 
   
   posts_filter_score_gte_avg_1:
@@ -104,6 +108,8 @@ services:
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE=400
+    networks:
+      - rabbitmq
 
   posts_filter_score_gte_avg_2:
     container_name: posts_filter_score_gte_avg_2
@@ -119,6 +125,8 @@ services:
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE=400
+    networks:
+      - rabbitmq
 
   
   posts_reduce_avg_sentiment_1:
@@ -133,6 +141,8 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+    networks:
+      - rabbitmq
 
   posts_reduce_avg_sentiment_2:
     container_name: posts_reduce_avg_sentiment_2
@@ -146,6 +156,8 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+    networks:
+      - rabbitmq
 
 
   posts_max_avg_sentiment:
@@ -163,6 +175,8 @@ services:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS=2
+    networks:
+      - rabbitmq
 
   
   posts_filter_columns_1:
@@ -178,7 +192,8 @@ services:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=1
+    networks:
+      - rabbitmq
 
   posts_filter_columns_2:
     container_name: posts_filter_columns_2
@@ -193,22 +208,8 @@ services:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=2
-
-  posts_filter_columns_3:
-    container_name: posts_filter_columns_3
-    image: posts_filter_columns:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
+    networks:
       - rabbitmq
-    links: 
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=posts_queue
-      - QUEUE_SEND_JOIN=posts_for_join_queue
-      - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY=3
 
 
   posts_avg_score:
@@ -223,7 +224,9 @@ services:
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
-      - RECV_WORKERS=3
+      - RECV_WORKERS=2
+    networks:
+      - rabbitmq
 
   join_comments_with_posts:
     container_name: join_comments_with_posts
@@ -241,5 +244,14 @@ services:
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
       - CHUNKSIZE=400
       - RECV_WORKERS_COMMENTS=2
-      - RECV_WORKERS_POSTS=3
+      - RECV_WORKERS_POSTS=2
       - SEND_WORKERS=2
+    networks:
+      - rabbitmq
+
+networks:
+  rabbitmq:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24

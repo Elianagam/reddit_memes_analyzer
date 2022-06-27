@@ -5,14 +5,16 @@ import json
 
 
 class Connection:
-    def __init__(self, queue_name='', exchange_name='', bind=False, conn=None, exchange_type='fanout', routing_key=''):
-        if not conn:
-            time.sleep(15)
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-            self.channel = self.connection.channel()
-        else:
+    def __init__(self, queue_name='', exchange_name='', bind=False, 
+        conn=None, exchange_type='fanout', routing_key=''):
+        if conn != None:
             self.connection = conn.connection
             self.channel = conn.channel
+        else:
+            time.sleep(15)
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+            self.channel = self.connection.channel()      
+
 
         self.queue_name = queue_name
         self.exchange_name = exchange_name
