@@ -6,7 +6,7 @@ services:
     ports:
       - 15672:15672
 
-  timer:
+  healthchecker:
     build:
       context: src
       dockerfile: Dockerfile
@@ -17,5 +17,20 @@ services:
       - LOG_LEVEL=DEBUG
     depends_on:
       - rabbit
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./persistence/:/tmp/persistence/
+
+  testnode:
+    build:
+      context: src
+      dockerfile: Dockerfile
+    entrypoint: ["python3", "dummies.py"]
+    deploy:
+      replicas: 1
+    depends_on:
+      - rabbit
+    environment:
+      - PYTONBUFFERED=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

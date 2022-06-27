@@ -5,4 +5,4 @@ RUN pip3 install --user pika
 RUN pip3 install --user retry
 COPY . /src
 WORKDIR /src
-ENTRYPOINT python3 -u main.py
+CMD python3 -u main.py

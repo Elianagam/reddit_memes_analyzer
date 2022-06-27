@@ -15,8 +15,8 @@ import time
 import inspect
 import json
 from utils.connections import connect_retry
-from utils import get_node_id
-from constants import NODE_QUANTITY, LOG_LEVEL
+from utils import get_node_id, start_container
+from constants import NODE_QUANTITY, LOG_LEVEL, PERSISTENCE_COMPLETE_PATH
 from multiprocessing import Process
 from enum import Enum
 
@@ -24,6 +24,8 @@ SLEEP_SECONDS = 1
 ELECTION_LIMIT_PER_NODE = 2
 HEARTBEAT_DELAY = 1
 HEARTBEAT_LIMIT = HEARTBEAT_DELAY * 3
+HEALTHCHECK_READ_TIMEOUT = 2
+HEALTHCHECK_NODE_TIMEOUT = 5
 
 logger = logging.getLogger('carlitos')
 logger.setLevel(logging.getLevelName(LOG_LEVEL))
@@ -61,6 +63,7 @@ class ClusterNode(object):
         self.state = NodeState.UNKNOWN
         self.state_mapping = self.populate_states()
         self.dataset = {}
+        self.health_monitoring = {}
         logger.debug('%s iniciado', self.node_id)
 
     def populate_states(self):
@@ -125,19 +128,47 @@ class ClusterNode(object):
         _, _, body = self.channel.basic_get(queue=self.queue)
         return json.loads(body) if body else body
 
+    # TODA ESTA PARTE ES DEL HEATH-CHECK PER SE
+    def restart_node(self, node):
+        logger.warning("Restarteando %r", node)
+        start_container(name=node)
+
+    def check_node_healths(self):
+        now = time.time()
+        logger.info("2) Dataset es %r", self.health_monitoring)
+        for node, ts in self.health_monitoring.items():
+            if now - ts > HEALTHCHECK_NODE_TIMEOUT:
+                logger.info("Ahora estoy en %r, el ts es %r", now, ts)
+                self.restart_node(node)
+                # Le vuelvo a setear el checkpoint para que no reintente muy rapido
+                self.health_monitoring[node] = now
+
     def health_check(self, conn):
         # Channel.consume es bloqueante
         channel = conn.channel()
         logger.info("%s escuchando mensajes del heath check")
-        for _, _, msg in channel.consume(queue='health_check'):
-            logger.info("Recibi %r", msg)
+        for _, _, msg in channel.consume(queue='health_check', inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
+            if msg:
+                logger.info("Recibi %r", msg)
+                msg = json.loads(msg)
+                source = msg['source']
+                now = time.time()
+                self.health_monitoring[source] = now
+                logger.info("Actualizo %r con %r", source, now)
+                logger.info("Checkeo...valor actual %r", self.health_monitoring[source])
+            logger.info("1) Dataset es %r", self.health_monitoring)
+            self.check_node_healths()
 
     def init_healthcheck(self):
+        if self.healthcheck_process:
+            return
         print("Iniciando heartbeat")
         conn = connect_retry()
         self.healthcheck_process = Process(target=self.health_check, args=(conn,))
         self.healthcheck_process.daemon = True
         self.healthcheck_process.start()
+
+    # FIN DEL HEALTH CHECK
 
     def heartbeat(self, conn):
         channel = conn.channel()
@@ -152,6 +183,8 @@ class ClusterNode(object):
             time.sleep(HEARTBEAT_DELAY)
 
     def init_heartbeat(self):
+        if self.heartbeat_process:
+            return
         print("Iniciando heartbeat")
         conn = connect_retry()
         self.heartbeat_process = Process(target=self.heartbeat, args=(conn,))
