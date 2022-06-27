@@ -9,29 +9,27 @@ services:
     ports:
       - 15672:15672
       - 5672:5672
+    networks:
+      - rabbitmq
 
-  client:
-    container_name: client
-    image: client:latest
+  receiver:
+    container_name: receiver
+    image: receiver:latest
     entrypoint: python3 /main.py
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
-    volumes:
-      - ./data:/data
     environment:
-      - CHUNKSIZE={}
-      - FILE_COMMETS=/data/comments.csv
-      - FILE_POSTS=/data/posts.csv
-      - COMMETS_QUEUE=comments_queue 
+      - COMMETS_QUEUE=comments_queue
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS={}
       - SEND_WORKERS_POSTS={}
-      - STUDENTS_QUEUE=student_url_queue
-      - AVG_QUEUE=posts_avg_score_queue
-      - IMAGE_QUEUE=post_avg_sentiments_queue
+      - RECV_POSTS_QUEUE=client_posts_queue
+      - RECV_COMMENTS_QUEUE=client_comments_queue
+    networks:
+      - rabbitmq
 
   <COMMENTS_FILTER_COLUMNS>
   <COMMENTS_FILTER_STUDENTS>
@@ -45,7 +43,7 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
@@ -53,6 +51,8 @@ services:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 
   <POSTS_FILTER_COLUMNS>
 
@@ -63,12 +63,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 
   join_comments_with_posts:
     container_name: join_comments_with_posts
@@ -77,7 +79,7 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_COMMENTS=comments_filter_queue
@@ -88,7 +90,18 @@ services:
       - RECV_WORKERS_COMMENTS={}
       - RECV_WORKERS_POSTS={}
       - SEND_WORKERS={}
+    networks:
+      - rabbitmq
+
   <HEALTH_CHECK>
+
+networks:
+  rabbitmq:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
+>>>>>>> origin/main
 """
 
 COMENTS_FILTERS = """
@@ -99,12 +112,13 @@ COMENTS_FILTERS = """
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
-      - WORKER_KEY={}
+    networks:
+      - rabbitmq
 """
 
 FILTER_STUDENTS = """
@@ -115,12 +129,14 @@ FILTER_STUDENTS = """
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS={}
+    networks:
+      - rabbitmq
 """
 
 FILTER_SCORE_STUDENTS = """
@@ -131,13 +147,15 @@ FILTER_SCORE_STUDENTS = """
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE={}
+    networks:
+      - rabbitmq
 """
 
 POSTS_FILTER = """
@@ -148,13 +166,14 @@ POSTS_FILTER = """
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
-      - WORKER_KEY={}
+    networks:
+      - rabbitmq
 """
 
 REDUCE_SENTIMETS = """
@@ -165,12 +184,15 @@ REDUCE_SENTIMETS = """
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+    networks:
+      - rabbitmq
 """
+
 
 HEALTH_CHECKER = """
   healthchecker:
@@ -186,7 +208,17 @@ HEALTH_CHECKER = """
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./persistence/:/tmp/persistence/
+    networks:
+      - rabbitmq
 """
+
+
+def add_filters(num, init_txt):
+  filter_txt = ""
+  for i in range(1,num+1):
+      filter_txt += init_txt.format(i, i)
+  return filter_txt
+
 
 def main():
     filter_exchange = int(sys.argv[1])
@@ -195,14 +227,10 @@ def main():
     chunksize = int(sys.argv[4])
     healthccheck = int(sys.argv[5])
 
-    filters_c = ""
-    filters_p = ""
-    for i in range(1,workers_join_comments+1):
-        filters_c += COMENTS_FILTERS.format(i, i, i)
 
-    for i in range(1,workers_join_posts+1):
-        filters_p += POSTS_FILTER.format(i, i, i)
-    
+    filters_c = add_filters(workers_join_comments, COMENTS_FILTERS)
+    filters_p = add_filters(workers_join_posts, POSTS_FILTER)
+
     filters_s = ""
     filters_ss = ""
     reduce_se = ""
@@ -213,8 +241,8 @@ def main():
         filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize)
         reduce_se += REDUCE_SENTIMETS.format(x,x)
 
-    compose = INIT_DOCKER.format(chunksize, workers_join_comments, workers_join_posts,
-      filter_exchange, workers_join_posts, chunksize, workers_join_comments, 
+    compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts,
+      filter_exchange, workers_join_posts, chunksize, workers_join_comments,
       workers_join_posts, filter_exchange) \
                   .replace("<COMMENTS_FILTER_COLUMNS>", filters_c) \
                   .replace("<COMMENTS_FILTER_STUDENTS>", filters_s) \

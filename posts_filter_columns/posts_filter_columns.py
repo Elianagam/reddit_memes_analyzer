@@ -6,10 +6,8 @@ from common.connection import Connection
 
 
 class PostsFilterColumns:
-    def __init__(self, queue_recv, queue_send_to_join, queue_send_to_avg, worker_key):
-        self.worker_key = f"worker.num{worker_key}"
-        self.conn_recv = Connection(exchange_name=queue_recv, bind=True,
-            exchange_type='topic', routing_key=self.worker_key)
+    def __init__(self, queue_recv, queue_send_to_join, queue_send_to_avg):
+        self.conn_recv = Connection(queue_name=queue_recv)
         self.conn_send_join = Connection(queue_name=queue_send_to_join)
         self.conn_send_avg = Connection(queue_name=queue_send_to_avg)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
@@ -31,7 +29,7 @@ class PostsFilterColumns:
             self.conn_send_avg.send(json.dumps(posts))
             return
 
-        logging.info(f"[POST FILTER RECV] {self.worker_key} {len(posts)}")
+        logging.info(f"[POST FILTER COLUMS] RECV {len(posts)}")
         posts_to_join, posts_for_avg = self.__parser(posts)
 
         self.conn_send_join.send(json.dumps(posts_to_join))

@@ -18,7 +18,7 @@ def main():
         )
         recver.start()
     except Exception as e:
-        logging.info(f"Close Connection")
+        logging.info(f"Close Connection {e}")
 
 
 if __name__ == "__main__":

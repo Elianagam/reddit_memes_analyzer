@@ -6,5 +6,5 @@ RUN pip3 install --user retry
 
 COPY client /
 COPY data /data
-COPY common /common
+COPY common/ /common
 CMD ["python", "./main.py"]
