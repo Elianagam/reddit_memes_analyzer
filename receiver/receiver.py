@@ -18,34 +18,36 @@ class Receiver:
         self.client_conn_recv = Connection(queue_name=recv_post_queue)
         self.client_conn_recv_c = Connection(queue_name=recv_comments_queue, conn=self.client_conn_recv)
         
-        # SYSTEM SEND
-        self.conn_comments = Connection(queue_name=comments_queue)
-        self.conn_posts = Connection(queue_name=posts_queue)
+        # CLIENT SEND RESPONSE
+        self.client_conn_send = Connection(queue_name=send_response_queue, conn=self.client_conn_recv)
 
         # SYSTEM RECV
         self.students_recved = []
-        self.conn_recv_students = Connection(queue_name=students_queue)
-        self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.conn_recv_students)
-        self.conn_recv_image = Connection(queue_name=image_queue, conn=self.conn_recv_students)
+        self.conn_recv_students = Connection(queue_name=students_queue, conn=self.client_conn_recv)
+        self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.client_conn_recv)
+        self.conn_recv_image = Connection(queue_name=image_queue, conn=self.client_conn_recv)
 
-        # CLIENT SEND RESPONSE
-        self.client_conn_send = Connection(queue_name=send_response_queue)
+        # SYSTEM SEND
+        self.conn_comments = Connection(queue_name=comments_queue)
+        self.conn_posts = Connection(queue_name=posts_queue)
+        
         self.count_end = 0
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.client_conn_recv.close()
-        self.conn_posts.close()
-        self.conn_comments.close()
-        self.conn_recv_students.close()
+        #self.conn_posts.close()
+        #self.conn_comments.close()
+        #self.conn_recv_students.close()
         sys.exit(0)
 
     def start(self):
         self.client_conn_recv.recv(self.__callback_post, start_consuming=False)
-        self.client_conn_recv_c.recv(self.__callback_comment)
+        self.client_conn_recv_c.recv(self.__callback_comment, start_consuming=False)
         
         self.conn_recv_students.recv(self.__callback, start_consuming=False)
         self.conn_recv_avg.recv(self.__callback, start_consuming=False)
+        logging.info("START CONSUMING...")
         self.conn_recv_image.recv(self.__callback)
 
     def __callback_post(self, ch, method, properties, body):
@@ -70,7 +72,6 @@ class Receiver:
 
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
-        logging.info("RECV...")
         try:
             logging.info(f"RECV: {sink_recv.keys()}")   
         except:

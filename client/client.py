@@ -29,6 +29,8 @@ class Client:
 
         self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
+
+        self.count_end = 0
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
@@ -38,7 +40,7 @@ class Client:
 
     def start(self):
         self.conn_recv_response.recv(self.__callback)
-        
+
         self.posts_sender.start()
         self.comments_sender.start()
 
