@@ -26,6 +26,10 @@ services:
       - SEND_WORKERS_POSTS=2
       - RECV_POSTS_QUEUE=client_posts_queue
       - RECV_COMMENTS_QUEUE=client_comments_queue
+      - SEND_RESPONSE_QUEUE=client_response_queue
+      - STUDENTS_QUEUE=student_url_queue
+      - AVG_QUEUE=posts_avg_score_queue
+      - IMAGE_QUEUE=post_avg_sentiments_queue
     networks:
       - rabbitmq
 

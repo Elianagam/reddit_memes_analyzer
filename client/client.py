@@ -15,9 +15,7 @@ class Client:
         file_comments,
         comments_queue,
         chunksize,
-        students_queue,
-        avg_queue,
-        image_queue
+        response_queue,
     ):
         logging.info("INIT")
         self.file_comments = file_comments
@@ -27,10 +25,7 @@ class Client:
         self.conn_posts = Connection(queue_name=posts_queue)
         self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
 
-        self.students_recved = []
-        self.conn_recv_students = Connection(queue_name=students_queue)
-        self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.conn_recv_students)
-        self.conn_recv_image = Connection(queue_name=image_queue, conn=self.conn_recv_students)
+        self.conn_recv_response = Connection(queue_name=response_queue)
 
         self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
@@ -39,19 +34,18 @@ class Client:
     def exit_gracefully(self, *args):
         self.conn_posts.close()
         self.conn_comments.close()
-        self.conn_recv_students.close()
         sys.exit(0)
 
-
     def start(self):
+        self.conn_recv_response.recv(self.__callback)
+        
         self.posts_sender.start()
         self.comments_sender.start()
 
-        self.__recv_sinks()
 
         self.comments_sender.join()
         self.posts_sender.join()
-    
+
 
     def __send_posts(self):
         logging.info("SEND POST DATA")
@@ -86,28 +80,15 @@ class Client:
 
         self.__read(self.file_comments, self.conn_comments, fields)
 
-    def __recv_sinks(self):
-        self.conn_recv_students.recv(self.__callback_students, start_consuming=False)
-        self.conn_recv_avg.recv(self.__callback, start_consuming=False)
-        self.conn_recv_image.recv(self.__callback)
-        
-
-    def __callback_students(self, ch, method, properties, body):
-        sink_recv = json.loads(body)
-        
-        if "end" in sink_recv:
-            return
-        for student in sink_recv:
-            logging.info(f"* * * [CLIENT RECV END STUDENT] {sink_recv}")
-            self.students_recved.append(student)
-        
-
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
-        if "end" in sink_recv:
-            return
-        else:
-            if "posts_score_avg" in sink_recv:
-                logging.info(f"* * * [CLIENT RECV] {sink_recv}")
-            else:
-                logging.info(f"* * * [CLIENT RECV] {sink_recv.keys()}")
+
+        if "posts_score_avg" in sink_recv:
+            logging.info(f"* * * [CLIENT AVG_SCORE RECV] {sink_recv}")
+        elif "image_bytes" in sink_recv:
+            logging.info(f"* * * [CLIENT BYTES RECV] {sink_recv.keys()}")
+        elif "end" in sink_recv:
+            self.count_end += 1
+            logging.info(f"-- Count end {self.count_end}")
+        else: 
+            logging.info(f"* * * [CLIENT STUDENT RECV] {len(sink_recv)}")
