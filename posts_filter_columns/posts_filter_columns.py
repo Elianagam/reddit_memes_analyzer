@@ -18,7 +18,7 @@ class PostsFilterColumns:
         self.conn_send_avg.close()
 
     def start(self):
-        self.conn_recv.recv(self.__callback)
+        self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
         posts = json.loads(body)
@@ -34,6 +34,7 @@ class PostsFilterColumns:
 
         self.conn_send_join.send(json.dumps(posts_to_join))
         self.conn_send_avg.send(json.dumps(posts_for_avg))
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, posts):
         posts_to_join = []

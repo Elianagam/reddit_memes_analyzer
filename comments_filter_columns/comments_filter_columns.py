@@ -17,7 +17,7 @@ class CommentsFilterColumns:
         self.conn_send.close()
 
     def start(self):
-        self.conn_recv.recv(self.__callback)
+        self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
         comments = json.loads(body)
@@ -30,6 +30,7 @@ class CommentsFilterColumns:
         logging.info(f"[COMMENT FILTER RECV] {len(comments)}")
         filter_comments = self.__parser(comments)
         self.conn_send.send(json.dumps(filter_comments))
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, comments):
         filter_comments = []
