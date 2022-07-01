@@ -9,7 +9,9 @@ from common.utils import initialize_log, initialize_config
 def main():
     try:
         config_params = initialize_config(["POSTS_QUEUE", "COMMETS_QUEUE",
-            "SEND_WORKERS_COMMENTS", "SEND_WORKERS_POSTS", "RECV_POSTS_QUEUE", "RECV_COMMENTS_QUEUE"])
+            "SEND_WORKERS_COMMENTS", "SEND_WORKERS_POSTS", "RECV_POSTS_QUEUE", 
+            "RECV_COMMENTS_QUEUE", "STUDENTS_QUEUE", "AVG_QUEUE", "IMAGE_QUEUE",
+            "SEND_RESPONSE_QUEUE"])
         initialize_log()
 
         logging.info("Client configuration: {}".format(config_params))
@@ -20,6 +22,10 @@ def main():
             send_workers_posts=int(config_params["SEND_WORKERS_POSTS"]),
             recv_post_queue=config_params["RECV_POSTS_QUEUE"],
             recv_comments_queue=config_params["RECV_COMMENTS_QUEUE"],
+            send_response_queue=config_params["SEND_RESPONSE_QUEUE"],
+            students_queue=config_params["STUDENTS_QUEUE"],
+            avg_queue=config_params["AVG_QUEUE"],
+            image_queue=config_params["IMAGE_QUEUE"],
         )
         
         recv.start()
