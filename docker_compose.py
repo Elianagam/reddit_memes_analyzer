@@ -32,6 +32,9 @@ services:
       - STUDENTS_QUEUE=student_url_queue
       - AVG_QUEUE=posts_avg_score_queue
       - IMAGE_QUEUE=post_avg_sentiments_queue
+      - STATUS_CHECK_QUEUE=client_status_check_queue
+      - STATUS_RESPONSE_QUEUE=client_status_response_queue
+      - RECV_WORKERS_STUDENTS={}
     networks:
       - rabbitmq
 
@@ -219,7 +222,7 @@ def main():
         filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize)
         reduce_se += REDUCE_SENTIMETS.format(x,x)
 
-    compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts,
+    compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts, filter_exchange,
       filter_exchange, workers_join_posts, chunksize, workers_join_comments, 
       workers_join_posts, filter_exchange) \
                   .replace("<COMMENTS_FILTER_COLUMNS>", filters_c) \

@@ -10,9 +10,13 @@ from common.connection import Connection
 class Receiver:
     def __init__(self, comments_queue, posts_queue, send_workers_comments,
         send_workers_posts, recv_post_queue, recv_comments_queue, send_response_queue,
-        students_queue, avg_queue, image_queue):
+        students_queue, avg_queue, image_queue, status_response_queue, status_check_queue,
+        recv_workers_students
+    ):
         self.send_workers_comments = send_workers_comments
         self.send_workers_posts = send_workers_posts
+        self.total_end = 1 + recv_workers_students
+        self.count_end = 0
 
         # CLIENT RECV REQUEST
         self.client_conn_recv = Connection(queue_name=recv_post_queue)
@@ -20,6 +24,7 @@ class Receiver:
         
         # CLIENT SEND RESPONSE
         self.client_conn_send = Connection(queue_name=send_response_queue, conn=self.client_conn_recv)
+        self.conn_status_send = Connection(queue_name=status_response_queue)
 
         # SYSTEM RECV
         self.students_recved = []
@@ -27,18 +32,18 @@ class Receiver:
         self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.client_conn_recv)
         self.conn_recv_image = Connection(queue_name=image_queue, conn=self.client_conn_recv)
 
+        self.conn_status_recv = Connection(queue_name=status_check_queue, conn=self.client_conn_recv)
+
         # SYSTEM SEND
         self.conn_comments = Connection(queue_name=comments_queue)
         self.conn_posts = Connection(queue_name=posts_queue)
         
-        self.count_end = 0
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.client_conn_recv.close()
-        #self.conn_posts.close()
-        #self.conn_comments.close()
-        #self.conn_recv_students.close()
+        self.conn_posts.close()
+        self.conn_comments.close()
         sys.exit(0)
 
     def start(self):
@@ -47,8 +52,9 @@ class Receiver:
         
         self.conn_recv_students.recv(self.__callback, start_consuming=False)
         self.conn_recv_avg.recv(self.__callback, start_consuming=False)
+        self.conn_recv_image.recv(self.__callback, start_consuming=False)
         logging.info("START CONSUMING...")
-        self.conn_recv_image.recv(self.__callback)
+        self.conn_status_recv.recv(self.__callback_status)
 
     def __callback_post(self, ch, method, properties, body):
         recv = json.loads(body)
@@ -75,6 +81,29 @@ class Receiver:
         try:
             logging.info(f"RECV: {sink_recv.keys()}")   
         except:
-            logging.info(f"RECV {len(sink_recv)}")
+            logging.info(f"RECV STUDENT {len(sink_recv)}")
         finally:
-            self.client_conn_send.send(json.dumps(sink_recv))
+            if "end" in sink_recv:
+                self.count_end += 1
+                logging.info(f" COUNT {self.count_end} TOTAL: {self.total_end}")
+                if self.total_end == self.count_end:
+                    logging.info(f"RECV ALL END... FINISH")
+                    self.conn_status_send.send(json.dumps({"status": "FINISH"}))
+                    self.count_end = 0
+            else:
+                self.client_conn_send.send(json.dumps(sink_recv))
+
+    def __callback_status(self, ch, method, properties, body):
+        sink_recv = json.loads(body)
+        # recv 1 avg_score and 1 bytes_image
+        msg = {}
+        logging.info(f"---- STATUS CHECK ----")
+        logging.info(f" COUNT {self.count_end} TOTAL: {self.total_end}")
+        if self.count_end == self.total_end:
+            msg = {"status": "FINISH"}
+        elif self.count_end == 0:
+            msg = {"status": "AVAILABLE"}
+        else:
+            msg = {"status": "BUSY"}
+        logging.info(msg)
+        self.conn_status_send.send(json.dumps(msg))

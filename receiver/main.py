@@ -11,7 +11,8 @@ def main():
         config_params = initialize_config(["POSTS_QUEUE", "COMMETS_QUEUE",
             "SEND_WORKERS_COMMENTS", "SEND_WORKERS_POSTS", "RECV_POSTS_QUEUE", 
             "RECV_COMMENTS_QUEUE", "STUDENTS_QUEUE", "AVG_QUEUE", "IMAGE_QUEUE",
-            "SEND_RESPONSE_QUEUE"])
+            "SEND_RESPONSE_QUEUE", "STATUS_RESPONSE_QUEUE", "STATUS_CHECK_QUEUE",
+            "RECV_WORKERS_STUDENTS"])
         initialize_log()
 
         logging.info("Client configuration: {}".format(config_params))
@@ -26,6 +27,9 @@ def main():
             students_queue=config_params["STUDENTS_QUEUE"],
             avg_queue=config_params["AVG_QUEUE"],
             image_queue=config_params["IMAGE_QUEUE"],
+            status_response_queue=config_params["STATUS_RESPONSE_QUEUE"],
+            status_check_queue=config_params["STATUS_CHECK_QUEUE"],
+            recv_workers_students=int(config_params["RECV_WORKERS_STUDENTS"]),
         )
         
         recv.start()

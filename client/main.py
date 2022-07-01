@@ -14,7 +14,9 @@ def main():
             "POSTS_QUEUE",
             "COMMENTS_QUEUE",
             "FILE_COMMENTS",
-            "RESPONSE_QUEUE"
+            "RESPONSE_QUEUE",
+            "STATUS_CHECK_QUEUE",
+            "STATUS_RESPONSE_QUEUE"
         ])
         initialize_log()
 
@@ -27,6 +29,8 @@ def main():
             file_comments=config_params["FILE_COMMENTS"],
             comments_queue=config_params["COMMENTS_QUEUE"],
             response_queue=config_params["RESPONSE_QUEUE"],
+            status_check_queue=config_params["STATUS_CHECK_QUEUE"],
+            status_response_queue=config_params["STATUS_RESPONSE_QUEUE"],
         )
         client.start()
     except Exception as e:

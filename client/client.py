@@ -3,6 +3,7 @@ import signal
 import csv
 import json
 import sys
+import time
 from multiprocessing import Process
 from common.connection import Connection
 
@@ -16,38 +17,45 @@ class Client:
         comments_queue,
         chunksize,
         response_queue,
+        status_check_queue,
+        status_response_queue,
     ):
         logging.info("INIT")
         self.file_comments = file_comments
         self.file_posts = file_posts
         self.chunksize = chunksize
+        self.finish = False
+        self.run = False
 
         self.conn_posts = Connection(queue_name=posts_queue)
         self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
 
         self.conn_recv_response = Connection(queue_name=response_queue)
+        self.conn_status_send = Connection(queue_name=status_check_queue, conn=self.conn_recv_response)
+        self.conn_status_recv = Connection(queue_name=status_response_queue, conn=self.conn_recv_response)
 
         self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
+        self.check_status = Process(target=self.__status_checker())
 
-        self.count_end = 0
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.conn_posts.close()
-        self.conn_comments.close()
+        self.conn_recv_response.close()
         sys.exit(0)
 
     def start(self):
+        self.conn_status_recv.recv(self.__callback_status)
         self.conn_recv_response.recv(self.__callback)
 
+        self.check_status.start()
         self.posts_sender.start()
         self.comments_sender.start()
-
-
+        
+        self.check_status.join()
         self.comments_sender.join()
         self.posts_sender.join()
-
 
     def __send_posts(self):
         logging.info("SEND POST DATA")
@@ -89,8 +97,27 @@ class Client:
             logging.info(f"* * * [CLIENT AVG_SCORE RECV] {sink_recv}")
         elif "image_bytes" in sink_recv:
             logging.info(f"* * * [CLIENT BYTES RECV] {sink_recv.keys()}")
-        elif "end" in sink_recv:
-            self.count_end += 1
-            logging.info(f"-- Count end {self.count_end}")
         else: 
             logging.info(f"* * * [CLIENT STUDENT RECV] {len(sink_recv)}")
+
+
+    def __status_checker(self):
+        while not self.finish:
+            logging.info(f"--- [SEND STATUS CHECK]")
+            self.conn_status_send.send(body=json.dumps({"status": "CHECK"}))
+            time.sleep(5)
+            self.conn_status_recv.recv(self.__callback_status)
+
+    def __callback_status(self, ch, method, properties, body):
+        logging.info(f"[CLIENT STATUS] __callback_status")
+        sink_recv = json.loads(body)
+        logging.info(f"--- [CLIENT STATUS] {sink_recv}")
+        if sink_recv["status"] == "FINISH":
+            logging.info(f"[CLOSE CLIENT]")
+            self.finish = True
+            self.exit_gracefully()
+        elif sink_recv["status"] == "BUSY":
+            logging.info("System is busy, try later...")
+            self.exit_gracefully()
+        elif sink_recv["status"] == "AVAILABLE":
+            self.run = True
