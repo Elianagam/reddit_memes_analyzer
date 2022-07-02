@@ -90,22 +90,26 @@ class Receiver:
                 logging.info(f"*** RECV ALL END... FINISH")
                 self.client_conn_send.send(json.dumps({"status": "FINISH"}))
                 self.count_end = 0
+                self.actual_client = None
                 
 
     def __callback_status(self, ch, method, properties, body):
-        sink_recv = json.loads(body)
+        recv = json.loads(body)
         # recv 1 avg_score and 1 bytes_image
         msg = {}
+        if self.actual_client == None:
+            self.actual_client = recv['client_id']
         if self.count_end == self.total_end:
             msg = {"status": "FINISH"}
+            self.actual_client = None
         elif self.count_end == 0:
-            #if self.actual_client != None:
-            #    msg = {"status": "BUSY"}
+            if self.actual_client != None:
+                msg = {"status": "BUSY"}
             msg = {"status": "AVAILABLE"}
         else:
-    #        if self.actual_client == sink_recv['client_id']:
-    #            msg = {"status": "PENDING"}
-    #        else:
-            msg = {"status": "BUSY"}
-        logging.info(f"recv: {sink_recv} - response: {msg['status']}")
+            if self.actual_client == sink_recv['client_id']:
+                msg = {"status": "PENDING"}
+            else:
+                msg = {"status": "BUSY"}
+        logging.info(f"recv: {recv} - response: {msg['status']}")
         self.client_conn_send.send(json.dumps(msg))

@@ -47,6 +47,7 @@ class Client:
 
     def start(self):
         #self.conn_status_recv.recv(self.__callback_status, start_consuming=False)
+        self.conn_status_send.send(body=json.dumps({"client_id": 1}))
         self.conn_recv_response.recv(self.__callback)
 
         #self.check_status.start()
