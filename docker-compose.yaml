@@ -175,6 +175,7 @@ services:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
+      - ./data/data_base:/data_base
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
