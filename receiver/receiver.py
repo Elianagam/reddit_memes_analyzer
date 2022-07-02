@@ -99,17 +99,19 @@ class Receiver:
         msg = {}
         if self.actual_client == None:
             self.actual_client = recv['client_id']
+
         if self.count_end == self.total_end:
             msg = {"status": "FINISH"}
             self.actual_client = None
         elif self.count_end == 0:
-            if self.actual_client != None:
+            if self.actual_client == recv['client_id']:
+                msg = {"status": "AVAILABLE"}
+            else:
                 msg = {"status": "BUSY"}
-            msg = {"status": "AVAILABLE"}
         else:
             if self.actual_client == sink_recv['client_id']:
                 msg = {"status": "PENDING"}
             else:
                 msg = {"status": "BUSY"}
-        logging.info(f"recv: {recv} - response: {msg['status']}")
+        logging.info(f"STATUS: {recv} - response: {msg['status']}")
         self.client_conn_send.send(json.dumps(msg))

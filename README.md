@@ -24,7 +24,7 @@ make docker-client-image
 ```
 Luego se buildean el resto de las imagenes
 ```
-make docker-image
+make docker-system-image
 ```
 
 **Run**
@@ -33,8 +33,14 @@ Para correr el docker compose y poder visualizar los logs se corren en secuencia
 make docker-compose-up
 make docker-compose-logs
 ```
+y para el cliente
+```
+make docker-client-run
+```
 
 **Stop**
 ```
 make docker-compose-down
+make docker-client-down
+```
 ```
