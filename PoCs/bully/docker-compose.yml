@@ -8,8 +8,8 @@ services:
 
   healthchecker:
     build:
-      context: src
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: health_check/Dockerfile
     deploy:
       replicas: 4
     environment:
@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["python3", "dummies.py"]
     deploy:
-      replicas: 1
+      replicas: 2
     depends_on:
       - rabbit
     environment:
