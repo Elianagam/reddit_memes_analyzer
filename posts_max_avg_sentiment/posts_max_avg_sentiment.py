@@ -20,6 +20,13 @@ class PostsMaxAvgSentiment:
 
         self.__load_state()
 
+    def __proces_ended(self):
+        if self.end_recv == self.recv_workers:
+            self.__end_recv(json.dumps({"end": True}))
+            self.end_recv = 0
+            self.max_avg = {"url": None, "avg_sentiment": 0}
+            self.__store_state()
+
     def __load_state(self):
         if os.path.exists('./data_base/post_max_avg_sentiment_state.txt'):
             with open('./data_base/post_max_avg_sentiment_state.txt') as f:
@@ -43,6 +50,7 @@ class PostsMaxAvgSentiment:
         self.conn_send.close()
 
     def start(self):
+        self.__proces_ended()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
