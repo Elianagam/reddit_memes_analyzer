@@ -75,6 +75,17 @@ class ClusterNode(object):
                     states[STATES_MAPPING[_name]] = getattr(self, name)
         return states
 
+    def save(self):
+        with open(PERSISTENCE_COMPLETE_PATH, 'w+') as f:
+            json.dump(self.health_monitoring, f)
+
+    def load(self):
+        with open(PERSISTENCE_COMPLETE_PATH, 'r') as f:
+            try:
+                self.health_monitoring = json.load(f)
+            except:
+                self.health_monitoring = {}
+
     def connect(self):
         self.conn = connect_retry()
         self.channel = self.conn.channel()
@@ -116,12 +127,14 @@ class ClusterNode(object):
         for i in ids:
             self.channel.basic_publish(exchange='election', routing_key=str(i), body=json.dumps(message))
 
-    def broadcast_victory(self):
+    def broadcast_victory(self, ids=None):
+        targets = ids or self.all_ids
+
         msg = {
             'type': 'victory',
             'node_id': self.node_id
         }
-        self.send_to(self.all_ids, msg)
+        self.send_to(targets, msg)
 
     # Cambiar por consume que permite timeout
     def get_message(self):
@@ -142,6 +155,7 @@ class ClusterNode(object):
                 self.restart_node(node)
                 # Le vuelvo a setear el checkpoint para que no reintente muy rapido
                 self.health_monitoring[node] = now
+                self.save()
 
     def health_check(self, conn):
         # Channel.consume es bloqueante
@@ -154,6 +168,7 @@ class ClusterNode(object):
                 source = msg['source']
                 now = time.time()
                 self.health_monitoring[source] = now
+                self.save()
                 logger.info("Actualizo %r con %r", source, now)
                 logger.info("Checkeo...valor actual %r", self.health_monitoring[source])
             logger.info("1) Dataset es %r", self.health_monitoring)
@@ -213,6 +228,8 @@ class ClusterNode(object):
         self.state = NodeState.OK
         #TODO: Descomentar
         self.init_heartbeat()
+        self.load()
+        logger.info("Cargando la info persistida, la misma es %r", self.health_monitoring)
         logger.info("Por hacer healthcheck")
         self.init_healthcheck()
 
@@ -348,7 +365,12 @@ class ClusterNode(object):
         if msg:
             msgtype = msg['type']
             if msgtype == 'election_init':
-                self.process_election(msg)
+                if self.leader:
+                    source = msg['source']
+                    # Soy el lider no inicio ninguna elección, le refuerzo mi victoria
+                    self.broadcast_victory(ids=[source])
+                else:
+                    self.process_election(msg)
             elif msgtype == 'heartbeat':
                 self.set_checkpoint()
             elif msgtype == 'victory':
