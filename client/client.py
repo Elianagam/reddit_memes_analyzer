@@ -32,7 +32,7 @@ class Client:
 
         self.conn_recv_response = Connection(queue_name=response_queue)
         self.conn_status_send = Connection(queue_name=status_check_queue, conn=self.conn_recv_response)
-        self.conn_status_recv = Connection(queue_name=status_response_queue, conn=self.conn_recv_response)
+        #self.conn_status_recv = Connection(queue_name=status_response_queue, conn=self.conn_recv_response)
 
         self.comments_sender = Process(target=self.__send_comments())
         self.posts_sender = Process(target=self.__send_posts())
@@ -46,14 +46,14 @@ class Client:
         sys.exit(0)
 
     def start(self):
-        self.conn_status_recv.recv(self.__callback_status)
+        #self.conn_status_recv.recv(self.__callback_status, start_consuming=False)
         self.conn_recv_response.recv(self.__callback)
 
-        self.check_status.start()
+        #self.check_status.start()
         self.posts_sender.start()
         self.comments_sender.start()
         
-        self.check_status.join()
+        #self.check_status.join()
         self.comments_sender.join()
         self.posts_sender.join()
 
@@ -71,7 +71,7 @@ class Client:
             chunk = []
             for i, line in enumerate(reader):
                 if (i % self.chunksize == 0 and i > 0):
-                    logging.info(f"CHUNK {len(chunk)}")
+                    #logging.info(f"CHUNK {len(chunk)}")
                     conn.send(body=json.dumps(chunk))
                     chunk = []
                 chunk.append(line)
@@ -97,6 +97,8 @@ class Client:
             logging.info(f"* * * [CLIENT AVG_SCORE RECV] {sink_recv}")
         elif "image_bytes" in sink_recv:
             logging.info(f"* * * [CLIENT BYTES RECV] {sink_recv.keys()}")
+        elif "status" in sink_recv:
+            self.__callback_status(ch, method, properties, body)
         else: 
             logging.info(f"* * * [CLIENT STUDENT RECV] {len(sink_recv)}")
 
@@ -104,12 +106,11 @@ class Client:
     def __status_checker(self):
         while not self.finish:
             logging.info(f"--- [SEND STATUS CHECK]")
-            self.conn_status_send.send(body=json.dumps({"status": "CHECK"}))
+            self.conn_status_send.send(body=json.dumps({"client_id": 1}))
             time.sleep(5)
-            self.conn_status_recv.recv(self.__callback_status)
+            self.conn_recv_response.recv(self.__callback)
 
     def __callback_status(self, ch, method, properties, body):
-        logging.info(f"[CLIENT STATUS] __callback_status")
         sink_recv = json.loads(body)
         logging.info(f"--- [CLIENT STATUS] {sink_recv}")
         if sink_recv["status"] == "FINISH":

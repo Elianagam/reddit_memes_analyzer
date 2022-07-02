@@ -40,7 +40,7 @@ class PostsMaxAvgSentiment:
             download = self.__download_image()
             self.conn_send.send(json.dumps(download))
 
-        #self.conn_send.send(json.dumps(end_msg))
+        self.conn_send.send(json.dumps(end_msg))
 
     def __get_max_avg_sentiment(self, posts):
         for post in posts:

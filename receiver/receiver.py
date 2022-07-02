@@ -15,8 +15,9 @@ class Receiver:
     ):
         self.send_workers_comments = send_workers_comments
         self.send_workers_posts = send_workers_posts
-        self.total_end = 1 + recv_workers_students
+        self.total_end = 2 + recv_workers_students
         self.count_end = 0
+        self.actual_client = None
 
         # CLIENT RECV REQUEST
         self.client_conn_recv = Connection(queue_name=recv_post_queue)
@@ -24,7 +25,7 @@ class Receiver:
         
         # CLIENT SEND RESPONSE
         self.client_conn_send = Connection(queue_name=send_response_queue, conn=self.client_conn_recv)
-        self.conn_status_send = Connection(queue_name=status_response_queue)
+        #self.conn_status_send = Connection(queue_name=status_response_queue)
 
         # SYSTEM RECV
         self.students_recved = []
@@ -59,51 +60,52 @@ class Receiver:
     def __callback_post(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
-            logging.info(f"* * * [RECEIVER POST END] {recv}")
+            #logging.info(f"* * * [RECEIVER POST END] {recv}")
             for i in range(self.send_workers_posts):
                 self.conn_posts.send(json.dumps(recv))
         else:
-            #logging.info(f"* * * [RECEIVER POST RECV] {len(recv)}")
             self.conn_posts.send(json.dumps(recv))
 
     def __callback_comment(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
-            logging.info(f"* * * [RECEIVER COMMENTS END] {recv}")
+            #logging.info(f"* * * [RECEIVER COMMENTS END] {recv}")
             for i in range(self.send_workers_comments):
                 self.conn_comments.send(json.dumps(recv))
         else:
-            #logging.info(f"* * * [RECEIVER COMMENTS RECV] {len(recv)}")
             self.conn_comments.send(json.dumps(recv))
 
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
-        try:
-            logging.info(f"RECV: {sink_recv.keys()}")   
-        except:
-            logging.info(f"RECV STUDENT {len(sink_recv)}")
-        finally:
-            if "end" in sink_recv:
-                self.count_end += 1
-                logging.info(f" COUNT {self.count_end} TOTAL: {self.total_end}")
-                if self.total_end == self.count_end:
-                    logging.info(f"RECV ALL END... FINISH")
-                    self.conn_status_send.send(json.dumps({"status": "FINISH"}))
-                    self.count_end = 0
-            else:
-                self.client_conn_send.send(json.dumps(sink_recv))
+        if not "image_bytes" in sink_recv:
+            logging.info(f"RECV: {sink_recv}")
+        else:
+            logging.info(f"RECV: {sink_recv.keys()}")
+
+        if not "end" in sink_recv:
+            self.client_conn_send.send(json.dumps(sink_recv))
+        if "end" in sink_recv:
+            self.count_end += 1
+            if self.total_end == self.count_end:
+                logging.info(f"*** RECV ALL END... FINISH")
+                self.client_conn_send.send(json.dumps({"status": "FINISH"}))
+                self.count_end = 0
+                
 
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
         # recv 1 avg_score and 1 bytes_image
         msg = {}
-        logging.info(f"---- STATUS CHECK ----")
-        logging.info(f" COUNT {self.count_end} TOTAL: {self.total_end}")
         if self.count_end == self.total_end:
             msg = {"status": "FINISH"}
         elif self.count_end == 0:
+            #if self.actual_client != None:
+            #    msg = {"status": "BUSY"}
             msg = {"status": "AVAILABLE"}
         else:
+    #        if self.actual_client == sink_recv['client_id']:
+    #            msg = {"status": "PENDING"}
+    #        else:
             msg = {"status": "BUSY"}
-        logging.info(msg)
-        self.conn_status_send.send(json.dumps(msg))
+        logging.info(f"recv: {sink_recv} - response: {msg['status']}")
+        self.client_conn_send.send(json.dumps(msg))

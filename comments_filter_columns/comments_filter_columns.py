@@ -27,7 +27,7 @@ class CommentsFilterColumns:
             self.conn_send.send(json.dumps(comments))
             return
 
-        logging.info(f"[COMMENT FILTER RECV] {len(comments)}")
+        #logging.info(f"[COMMENT FILTER RECV] {len(comments)}")
         filter_comments = self.__parser(comments)
         self.conn_send.send(json.dumps(filter_comments))
 
