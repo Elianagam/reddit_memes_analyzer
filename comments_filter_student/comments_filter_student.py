@@ -17,17 +17,18 @@ class CommentsFilterStudent:
         self.conn_send.close()
 
     def start(self):
-        self.conn_recv.recv(self.__callback)
+        self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
         comments = json.loads(body)
 
         if "end" in comments:
             self.conn_send.send(json.dumps(comments))
-            return
         else:
             result = self.__parser(comments)
             self.conn_send.send(json.dumps(result))
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, comments):
         student_comments = []
