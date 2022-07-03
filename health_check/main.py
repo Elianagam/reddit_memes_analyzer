@@ -16,16 +16,19 @@ import inspect
 import json
 from common.health_check.utils.connections import connect_retry
 from common.health_check.utils import get_node_id, start_container
-from common.health_check.constants import NODE_QUANTITY, LOG_LEVEL, PERSISTENCE_COMPLETE_PATH
+from common.health_check.constants import (
+    ELECTION_TIMEOUT,
+    HEALTHCHECK_NODE_TIMEOUT,
+    HEALTHCHECK_READ_TIMEOUT,
+    HEARTBEAT_SLEEP,
+    HEARTBEAT_TIMEOUT,
+    LOG_LEVEL,
+    NODE_QUANTITY,
+    PERSISTENCE_COMPLETE_PATH,
+    SLEEP_SECONDS,
+)
 from multiprocessing import Process
 from enum import Enum
-
-SLEEP_SECONDS = 1
-ELECTION_LIMIT_PER_NODE = 2
-HEARTBEAT_DELAY = 1
-HEARTBEAT_LIMIT = HEARTBEAT_DELAY * 3
-HEALTHCHECK_READ_TIMEOUT = 2
-HEALTHCHECK_NODE_TIMEOUT = 5
 
 logger = logging.getLogger('carlitos')
 logger.setLevel(logging.getLevelName(LOG_LEVEL))
@@ -195,7 +198,7 @@ class ClusterNode(object):
             #msg = f'heartbeat:{self.node_id}:{time.time()}'
             self.send_to(ids, msg, channel=channel)
             logger.debug("Sending heartbeat")
-            time.sleep(HEARTBEAT_DELAY)
+            time.sleep(HEARTBEAT_SLEEP)
 
     def init_heartbeat(self):
         if self.heartbeat_process:
@@ -217,7 +220,7 @@ class ClusterNode(object):
         now = time.time()
         delta = (now - self.last_hb_processed) if self.last_hb_processed else None
         logger.debug(f"El delta es {delta}")
-        if delta and delta > HEARTBEAT_LIMIT:
+        if delta and delta > HEARTBEAT_TIMEOUT:
             print("El lider se murio xD")
 
     def proclamate_leader(self):
@@ -257,11 +260,11 @@ class ClusterNode(object):
         La función verifica si se sobrepasó el tiempo dado para la elección o no
         """
         distance_to_top = NODE_QUANTITY - self.node_id
-        allowed_timeout = ELECTION_LIMIT_PER_NODE * distance_to_top
+        allowed_timeout = ELECTION_TIMEOUT * distance_to_top
         return self.get_delta() > allowed_timeout
 
     def exceeded_heartbeat_limit(self):
-        return self.get_delta() > HEARTBEAT_LIMIT
+        return self.get_delta() > HEARTBEAT_TIMEOUT
 
     def start_election(self):
         msg = {

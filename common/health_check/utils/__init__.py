@@ -1,4 +1,5 @@
 import re
+import os
 import socket
 import subprocess
 
@@ -6,11 +7,15 @@ ID_REGEX = ".*_(?P<id>\d*)$"
 CONTAINER_REGEX = ".*\/(?P<container_name>[\w_]*_\d*)(\\n)?"
 
 
+class ContainerNameError(Exception):
+    pass
+
+
 def get_hostname():
     return socket.gethostname()
 
 
-def get_container_name():
+def _get_container_name():
     hostname = get_hostname()
     cmd = ["docker", "inspect", "-f", "{{.Name}}", hostname]
     cmd_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -19,6 +24,13 @@ def get_container_name():
     if m:
         data = m.groupdict()
         return data['container_name']
+
+
+def get_container_name():
+    name = os.environ.get('CONTAINER_NAME')
+    if not name:
+        raise ContainerNameError
+    return name
 
 
 def start_container(name):

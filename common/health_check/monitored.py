@@ -1,12 +1,10 @@
 from common.health_check.utils.connections import connect_retry
 from common.health_check.utils import get_container_name
-
+from common.health_check.constants import HEALTHBEAT_DELAY
 import os
 import json
 import time
 from multiprocessing import Process
-
-HEALTHBEAT_DELAY = int(os.environ.get("HEALTHBEAT_DELAY", 2))
 
 
 class MonitoredMixin(object):
