@@ -19,13 +19,14 @@ class PostsAvgSentiment:
 
         if "end" in posts:
             self.conn_send.send(json.dumps(posts))
-            return
+        else:
+            result = self.__parser(posts)
+            self.conn_send.send(json.dumps(result))
 
-        result = self.__parser(posts)
-        self.conn_send.send(json.dumps(result))
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def start(self):
-        self.conn_recv.recv(self.__callback)
+        self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __parser(self, posts):
         list_posts = []
@@ -39,4 +40,3 @@ class PostsAvgSentiment:
             }
             list_posts.append(post_new)
         return list_posts
-

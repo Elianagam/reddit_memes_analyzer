@@ -111,7 +111,10 @@ services:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - WORKER_NUM=1
       - CHUNKSIZE=400
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -128,7 +131,10 @@ services:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - WORKER_NUM=2
       - CHUNKSIZE=400
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
