@@ -39,23 +39,18 @@ class Client:
         self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
 
-        self.channel = self.conn_recv_response.get_channel()
-        
-        logging.info("INIT")
+        self.channel = self.conn_recv_response.get_channel()        
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.conn_recv_response.close()
-        logging.info(f"join")
         if self.checker != None and self.data_sender != None:
             self.checker.join()
             self.data_sender.join()
         sys.exit(0)
 
     def start(self):
-        logging.info("send status checker...")
-
-        self.conn_status_send.send(body=json.dumps({"client_id": 1}))
+        self.conn_status_send.send(body=json.dumps({"client_id": 2}))
         logging.info("waiting status response...")
         status = self.get_status()
         
@@ -65,8 +60,6 @@ class Client:
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
                 self.posts_queue, self.comments_queue, self.chunksize).start()
             self.checker = StatusChecker(self.alive, self.conn_status_send).start()
-
-            logging.info(f"response")
             self.get_response(self.__callback)
             
             
@@ -85,6 +78,7 @@ class Client:
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
         logging.info(f"--- [CLIENT STATUS] {sink_recv}")
+        
         if sink_recv["status"] == "FINISH":
             logging.info(f"[CLOSE CLIENT]")
             self.alive.value = False
