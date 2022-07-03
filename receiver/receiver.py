@@ -25,7 +25,6 @@ class Receiver:
         
         # CLIENT SEND RESPONSE
         self.client_conn_send = Connection(queue_name=send_response_queue, conn=self.client_conn_recv)
-        #self.conn_status_send = Connection(queue_name=status_response_queue)
 
         # SYSTEM RECV
         self.students_recved = []
@@ -103,14 +102,15 @@ class Receiver:
         if self.count_end == self.total_end:
             msg = {"status": "FINISH"}
             self.actual_client = None
+            self.count_end = 0
         elif self.count_end == 0:
             if self.actual_client == recv['client_id']:
                 msg = {"status": "AVAILABLE"}
             else:
                 msg = {"status": "BUSY"}
         else:
-            if self.actual_client == sink_recv['client_id']:
-                msg = {"status": "PENDING"}
+            if self.actual_client == recv['client_id']:
+                msg = {"status": "AVAILABLE"}
             else:
                 msg = {"status": "BUSY"}
         logging.info(f"STATUS: {recv} - response: {msg['status']}")
