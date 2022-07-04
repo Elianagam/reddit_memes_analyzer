@@ -14,6 +14,7 @@ services:
       - RESPONSE_QUEUE=client_response_queue
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
+      - CLIENT_ID=2
     networks:
       - rabbitmq
 

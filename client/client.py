@@ -23,6 +23,7 @@ class Client:
         response_queue,
         status_check_queue,
         status_response_queue,
+        client_id
     ):
         manager = Manager()
         self.alive = manager.Value('alive', True)
@@ -35,6 +36,9 @@ class Client:
         self.response_queue = response_queue
         self.checker = None
         self.data_sender = None
+        self.client_id = client_id
+        self.data_to_recv = 0
+        self.data_recved = 0
 
         self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
@@ -50,7 +54,7 @@ class Client:
         sys.exit(0)
 
     def start(self):
-        self.conn_status_send.send(body=json.dumps({"client_id": 2}))
+        self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
         logging.info("waiting status response...")
         status = self.get_status()
         
@@ -59,7 +63,7 @@ class Client:
         if status == "AVAILABLE":
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
                 self.posts_queue, self.comments_queue, self.chunksize).start()
-            self.checker = StatusChecker(self.alive, self.conn_status_send).start()
+            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id).start()
             self.get_response(self.__callback)
             
             
@@ -67,29 +71,36 @@ class Client:
         sink_recv = json.loads(body)
 
         if "posts_score_avg" in sink_recv:
-            logging.info(f"* * * [CLIENT AVG_SCORE RECV] {sink_recv}")
+            logging.info(f"* * * [AVG_SCORE] {sink_recv}")
+            self.data_recved += 1
         elif "image_bytes" in sink_recv:
-            logging.info(f"* * * [CLIENT BYTES RECV] {sink_recv.keys()}")
+            logging.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
+            self.data_recved += 1
         elif "status" in sink_recv:
             self.__callback_status(ch, method, properties, body)
         else: 
-            logging.info(f"* * * [CLIENT STUDENT RECV] {len(sink_recv)}")
+            logging.info(f"* * * [STUDENTS] {len(sink_recv)}")
+            self.data_recved += 1
 
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
-        logging.info(f"--- [CLIENT STATUS] {sink_recv}")
         
         if sink_recv["status"] == "FINISH":
             logging.info(f"[CLOSE CLIENT]")
             self.alive.value = False
-            self.exit_gracefully()
+            self.data_to_recv = sink_recv["data"]
+            if self.data_recved == self.data_to_recv:
+                self.exit_gracefully()
+
         elif sink_recv["status"] == "BUSY":
             logging.info("System is busy, try later...")
             self.exit_gracefully()
+
         elif sink_recv["status"] == "AVAILABLE":
             self.alive.value = True
+
         elif sink_recv["status"] == "PENDING":
-            self.alive.value = True
+            logging.info("System hasn't finish yet...")
 
     def get_status(self):
         for method, properties, body in self.channel.consume(self.response_queue, inactivity_timeout=TIMEOUT):

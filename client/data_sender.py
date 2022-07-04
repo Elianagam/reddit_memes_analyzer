@@ -9,12 +9,14 @@ from common.connection import Connection
 
 
 class StatusChecker(Process):
-    def __init__(self, conn_status_send, alive):
+    def __init__(self, conn_status_send, alive, client_id):
         super(StatusChecker, self).__init__()
         self.alive = alive
+        self.client_id = client_id
         self.conn_status_send = conn_status_send
 
     def exit_gracefully(self, *args):
+        logging.info("close status checker...")
         self.conn_status_send.close()
         sys.exit(0)
 
@@ -22,7 +24,7 @@ class StatusChecker(Process):
     def __status_checker(self):
         while self.alive.value:
             logging.info(f"--- [SEND STATUS CHECK]")
-            self.conn_status_send.send(body=json.dumps({"client_id": 1}))
+            self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
             time.sleep(2)
 
 

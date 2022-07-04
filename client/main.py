@@ -15,7 +15,8 @@ def main():
         "FILE_COMMENTS",
         "RESPONSE_QUEUE",
         "STATUS_CHECK_QUEUE",
-        "STATUS_RESPONSE_QUEUE"
+        "STATUS_RESPONSE_QUEUE",
+        "CLIENT_ID"
     ])
     initialize_log()
 
@@ -30,6 +31,7 @@ def main():
         response_queue=config_params["RESPONSE_QUEUE"],
         status_check_queue=config_params["STATUS_CHECK_QUEUE"],
         status_response_queue=config_params["STATUS_RESPONSE_QUEUE"],
+        client_id=config_params["CLIENT_ID"],
     )
     client.start()
    
