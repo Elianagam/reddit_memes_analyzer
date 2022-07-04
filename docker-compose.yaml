@@ -236,6 +236,8 @@ services:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS=2
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 

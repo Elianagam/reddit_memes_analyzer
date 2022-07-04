@@ -34,12 +34,7 @@ class PostsFilterScoreGteAvg:
         self.arrived_early = []
         if os.path.exists(f'./data_base/post_filter_gte_avg_arrived_early_{self.worker_num}.txt'):
             with open(f'./data_base/post_filter_gte_avg_arrived_early_{self.worker_num}.txt') as f:
-                for line in f:
-                    line = line.rstrip('\n')
-                    split = line.split(',')
-
-                    if len(split) == 2:
-                        self.arrived_early.append({"url": split[0], "score": int(split[1])})
+                self.arrived_early = json.loads(f.read())
 
             logging.info(f"loaded: {len(self.arrived_early)} dearly arrive")
 
@@ -47,7 +42,7 @@ class PostsFilterScoreGteAvg:
             with open(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt') as f:
                 avg = f.readline()
                 if "None" != avg:
-                    self.avg_score = float(self.avg_score)
+                    self.avg_score = float(avg)
 
             logging.info(f"loaded: {self.avg_score} avg")
 
@@ -57,11 +52,8 @@ class PostsFilterScoreGteAvg:
             f.write(store)
 
     def __store_arrived_early(self):
-        store = ""
-        for post in self.arrived_early:
-            store = store + "{},{}\n".format(post["url"], post["score"])
         with atomic_write(f'./data_base/post_filter_gte_avg_arrived_early_{self.worker_num}.txt', overwrite=True) as f:
-            f.write(store)
+            f.write(json.dumps(self.arrived_early))
 
     def __callback_students(self, ch, method, properties, body):
         posts = json.loads(body)
@@ -70,7 +62,8 @@ class PostsFilterScoreGteAvg:
         elif self.avg_score is not None:
             self.__parser(posts)
         else:
-            self.arrived_early.append([post for post in posts])
+            for post in posts:
+                self.arrived_early.append(post)
             self.__store_arrived_early()
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -100,6 +93,7 @@ class PostsFilterScoreGteAvg:
     def __send_arrive_early(self):
         n = self.chunksize
         lst = self.arrived_early
+        logging.info(self.arrived_early)
         chunks = [lst[i:i + n] for i in range(0, len(lst), n)]
         for chunk in chunks:
             logging.info(f"[chunks] {chunks}")
