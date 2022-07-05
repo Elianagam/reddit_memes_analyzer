@@ -6,10 +6,11 @@ from common.connection import Connection
 
 
 class PostsFilterColumns:
-    def __init__(self, queue_recv, queue_send_to_join, queue_send_to_avg):
-        self.conn_recv = Connection(queue_name=queue_recv)
+    def __init__(self, queue_recv, queue_send_to_join, queue_send_to_avg, worker_num):
+        self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send_join = Connection(queue_name=queue_send_to_join)
         self.conn_send_avg = Connection(queue_name=queue_send_to_avg)
+        self.worker_num = worker_num
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
@@ -25,15 +26,15 @@ class PostsFilterColumns:
 
         if "end" in posts:
             logging.info(f"[POSTS_RECV] END")
-            self.conn_send_join.send(json.dumps(posts))
-            self.conn_send_avg.send(json.dumps(posts))
-            return
+            self.conn_send_join.send(json.dumps({"end": self.worker_num}))
+            self.conn_send_avg.send(json.dumps({"end": self.worker_num}))
+        else:
+            logging.info(f"[POST FILTER COLUMNS] RECV {len(posts)}")
+            posts_to_join, posts_for_avg = self.__parser(posts)
 
-        logging.info(f"[POST FILTER COLUMS] RECV {len(posts)}")
-        posts_to_join, posts_for_avg = self.__parser(posts)
+            self.conn_send_join.send(json.dumps(posts_to_join))
+            self.conn_send_avg.send(json.dumps(posts_for_avg))
 
-        self.conn_send_join.send(json.dumps(posts_to_join))
-        self.conn_send_avg.send(json.dumps(posts_for_avg))
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, posts):
@@ -51,7 +52,6 @@ class PostsFilterColumns:
                 posts_to_join.append(post_new)
 
         return posts_to_join, posts_for_avg
-        
 
     def __invalid_post(self, post):
         # Dont send post without url or deleted

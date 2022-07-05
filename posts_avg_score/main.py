@@ -5,7 +5,7 @@ from common.utils import initialize_log, initialize_config
 
 
 def main():
-    try:
+    #try:
         config_params = initialize_config(["QUEUE_RECV", "QUEUE_SEND", "RECV_WORKERS"])
         initialize_log()
 
@@ -17,8 +17,8 @@ def main():
             recv_workers=int(config_params["RECV_WORKERS"])
         )
         recver.start()
-    except Exception as e:
-        logging.info(f"Close Connection {e}")
+    #except Exception as e:
+    #    logging.info(f"Close Connection {e}")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from common.connection import Connection
 
 class JoinCommentsWithPosts:
     def __init__(self, queue_recv_comments, queue_recv_post, queue_send_students,
-            queue_send_sentiments, chunksize, recv_workers_comments, recv_workers_posts, send_workers):
+                 queue_send_sentiments, chunksize, recv_workers_comments, recv_workers_posts, send_workers):
         self.conn_recv_pst = Connection(queue_name=queue_recv_post)
         self.conn_recv_cmt = Connection(queue_name=queue_recv_comments, conn=self.conn_recv_pst)
 
@@ -20,7 +20,7 @@ class JoinCommentsWithPosts:
 
         self.join_dict = {}
         self.msg_hash_list = []
-        self.finish = {"posts": 0, "comments": 0}
+        self.finish = {"posts": [False] * recv_workers_posts, "comments": [False] * recv_workers_comments}
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.recv_workers_comments = recv_workers_comments
@@ -67,7 +67,7 @@ class JoinCommentsWithPosts:
     def __clear_old_state(self):
         self.join_dict = {}
         self.msg_hash_list = []
-        self.finish = {"posts": 0, "comments": 0}
+        self.finish = {"posts": [False] * self.recv_workers_posts, "comments": [False] * self.recv_workers_comments}
 
         with atomic_write("./data_base/join_clean", overwrite=True) as f:
             f.write("True")
@@ -86,8 +86,8 @@ class JoinCommentsWithPosts:
     def __stored_is_finished(self):
         logging.info(
             f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
-        if self.finish["posts"] == self.recv_workers_posts \
-                and self.finish["comments"] == self.recv_workers_comments:
+        if False not in self.finish["posts"] \
+                and False not in self.finish["comments"]:
             self.__send_join_data()
             # Send end msg to n workers
             for i in range(self.send_workers):
@@ -103,8 +103,8 @@ class JoinCommentsWithPosts:
         comments = json.loads(body)
 
         if not self.__finish(my_key="comments", other_key="posts", readed=comments,
-            my_workers=self.recv_workers_comments,
-            other_workers=self.recv_workers_posts):
+                             my_workers=self.recv_workers_comments,
+                             other_workers=self.recv_workers_posts):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_comments(comments, msg_hash)
@@ -116,8 +116,8 @@ class JoinCommentsWithPosts:
         posts = json.loads(body)
 
         if not self.__finish(my_key="posts", other_key="comments", readed=posts,
-            my_workers=self.recv_workers_posts,
-            other_workers=self.recv_workers_comments):
+                             my_workers=self.recv_workers_posts,
+                             other_workers=self.recv_workers_comments):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_post(posts, msg_hash)
@@ -127,11 +127,12 @@ class JoinCommentsWithPosts:
 
     def __finish(self, my_key, other_key, readed, my_workers, other_workers):
         if "end" in readed:
-            self.finish[my_key] += 1
+            self.finish[my_key][int(readed["end"]) - 1] = True
             self.__store_finish()
-            logging.info(f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
-            if self.finish[other_key] == other_workers \
-                and self.finish[my_key] == my_workers:
+            logging.info(
+                f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
+            if False not in self.finish[other_key] \
+                    and False not in self.finish[my_key]:
                 self.__send_join_data()
                 # Send end msg to n workers
                 for i in range(self.send_workers):

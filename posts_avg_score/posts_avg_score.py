@@ -15,7 +15,7 @@ class PostsAvgScore:
         self.posts_ids = []
         self.sum_score = 0
         self.recv_workers = recv_workers
-        self.end_recv = 0
+        self.end_recv = [False] * recv_workers
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.__load_state()
@@ -24,7 +24,7 @@ class PostsAvgScore:
         self.posts_ids = []
         if os.path.exists('./data_base/avg_state.txt'):
             with open('./data_base/avg_state.txt') as f:
-                sum_score = f.readline()
+                sum_score = f.readline().rstrip('\n')
                 self.sum_score = int(sum_score)
 
                 for post_id in f:
@@ -35,8 +35,7 @@ class PostsAvgScore:
         if self.posts_ids:
             if os.path.exists('./data_base/avg_end_recv.txt'):
                 with open('./data_base/avg_end_recv.txt') as f:
-                    end_recv = f.readline()
-                    self.end_recv = int(end_recv)
+                    self.end_recv = json.loads(f.read())
 
         logging.info(f"end_recv: {self.end_recv}")
 
@@ -50,23 +49,21 @@ class PostsAvgScore:
             f.write(store)
 
     def __store_end_recv(self):
-        store = f"{self.end_recv}\n"
-
         with atomic_write('./data_base/avg_end_recv.txt', overwrite=True) as f:
-            f.write(store)
+            f.write(json.dumps(self.end_recv))
 
     def exit_gracefully(self, *args):
         self.conn_recv.close()
         self.conn_send.close()
 
     def start(self):
-        if self.end_recv == self.recv_workers:
+        if False not in self.end_recv:
             avg = self.__calculate_avg()
 
             self.conn_send.send(json.dumps({"posts_score_avg": avg}))
             self.conn_send.send(json.dumps({"end": True}))
 
-            self.end_recv = 0
+            self.end_recv = [False] * self.recv_workers
             self.sum_score = 0
             self.posts_ids = []
 
@@ -80,15 +77,15 @@ class PostsAvgScore:
         posts = json.loads(body)
 
         if "end" in posts:
-            self.end_recv += 1
+            self.end_recv[int(posts["end"]) - 1] = True
             self.__store_end_recv()
-            if self.end_recv == self.recv_workers:
+            if False not in self.end_recv:
                 avg = self.__calculate_avg()
 
                 self.conn_send.send(json.dumps({"posts_score_avg": avg}))
                 self.conn_send.send(json.dumps(posts))
 
-                self.end_recv = 0
+                self.end_recv = [False] * self.recv_workers
                 self.sum_score = 0
                 self.posts_ids = []
 

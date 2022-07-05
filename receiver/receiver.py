@@ -1,9 +1,7 @@
 import logging
 import signal
-import csv
 import json
 import sys
-from multiprocessing import Process
 from common.connection import Connection
 
 
@@ -28,8 +26,8 @@ class Receiver:
         self.conn_recv_image = Connection(queue_name=image_queue, conn=self.client_conn_recv)
 
         # SYSTEM SEND
-        self.conn_comments = Connection(queue_name=comments_queue)
-        self.conn_posts = Connection(queue_name=posts_queue)
+        self.conn_comments = Connection(exchange_name=comments_queue, exchange_type='topic')
+        self.conn_posts = Connection(exchange_name=posts_queue, exchange_type='topic')
         
         self.count_end = 0
         signal.signal(signal.SIGTERM, self.exit_gracefully)
@@ -55,20 +53,26 @@ class Receiver:
         if "end" in recv:
             logging.info(f"* * * [RECEIVER POST END] {recv}")
             for i in range(self.send_workers_posts):
-                self.conn_posts.send(json.dumps(recv))
+                key = i + 1
+                worker_key = f"{key}"
+                self.conn_posts.send(json.dumps(recv), routing_key=worker_key)
         else:
-            #logging.info(f"* * * [RECEIVER POST RECV] {len(recv)}")
-            self.conn_posts.send(json.dumps(recv))
+            key = ((hash(body) % self.send_workers_posts) + 1)
+            worker_key = f"{key}"
+            self.conn_posts.send(json.dumps(recv), routing_key=worker_key)
 
     def __callback_comment(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
             logging.info(f"* * * [RECEIVER COMMENTS END] {recv}")
             for i in range(self.send_workers_comments):
-                self.conn_comments.send(json.dumps(recv))
+                key = i+1
+                worker_key = f"{key}"
+                self.conn_comments.send(json.dumps(recv), routing_key=worker_key)
         else:
-            #logging.info(f"* * * [RECEIVER COMMENTS RECV] {len(recv)}")
-            self.conn_comments.send(json.dumps(recv))
+            key = ((hash(body) % self.send_workers_comments) + 1)
+            worker_key = f"{key}"
+            self.conn_comments.send(json.dumps(recv), routing_key=worker_key)
 
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)

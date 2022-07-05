@@ -7,9 +7,10 @@ from common.connection import Connection
 
 
 class CommentsFilterColumns:
-    def __init__(self, queue_recv, queue_send):
-        self.conn_recv = Connection(queue_name=queue_recv)
+    def __init__(self, queue_recv, queue_send, worker_num):
+        self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(queue_name=queue_send)
+        self.worker_num = worker_num
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
@@ -24,12 +25,11 @@ class CommentsFilterColumns:
 
         if "end" in comments:
             logging.info(f"[COMMENTS_RECV] END")
-            self.conn_send.send(json.dumps(comments))
-            return
-
-        logging.info(f"[COMMENT FILTER RECV] {len(comments)}")
-        filter_comments = self.__parser(comments)
-        self.conn_send.send(json.dumps(filter_comments))
+            self.conn_send.send(json.dumps({"end": self.worker_num}))
+        else:
+            logging.info(f"[COMMENT FILTER RECV] {len(comments)}")
+            filter_comments = self.__parser(comments)
+            self.conn_send.send(json.dumps(filter_comments))
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, comments):
