@@ -250,6 +250,8 @@ services:
       - rabbitmq
     links: 
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
     environment:
       - QUEUE_RECV_COMMENTS=comments_filter_queue
       - QUEUE_RECV_POSTS=posts_for_join_queue
@@ -259,6 +261,7 @@ services:
       - RECV_WORKERS_COMMENTS=2
       - RECV_WORKERS_POSTS=2
       - SEND_WORKERS=2
+      - PYTHONHASHSEED=0
     networks:
       - rabbitmq
 
