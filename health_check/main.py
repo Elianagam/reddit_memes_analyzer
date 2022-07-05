@@ -10,11 +10,13 @@ import logging
 import subprocess
 import os
 import sys
+import signal
 import logging
 import time
 import inspect
 import json
 from common.health_check.utils.connections import connect_retry
+from common.health_check.utils.signals import register_handler, SigTermException
 from common.health_check.utils import get_node_id, start_container
 from common.health_check.constants import (
     ELECTION_TIMEOUT,
@@ -30,7 +32,7 @@ from common.health_check.constants import (
 from multiprocessing import Process
 from enum import Enum
 
-logger = logging.getLogger('carlitos')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.getLevelName(LOG_LEVEL))
 
 
@@ -41,9 +43,12 @@ logging.basicConfig(
 
 
 class NodeState(Enum):
+    """
+    Representa todos los estados posibles que puede tener un nodo
+    """
     UNKNOWN = 'unknown'
     OK = 'ok'
-    ELECTION_INIT = 'election_init'
+    #ELECTION_INIT = 'election_init'
     ELECTION_WAITING_OK = 'election_oks'
     ELECTION_WAITING_VICTORY = 'election_victory'
 
@@ -67,9 +72,17 @@ class ClusterNode(object):
         self.state_mapping = self.populate_states()
         self.dataset = {}
         self.health_monitoring = {}
-        logger.debug('%s iniciado', self.node_id)
+        logger.info('%s iniciado', self.node_id)
+        register_handler()
+        #signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def populate_states(self):
+        """
+        Mappea cada uno de los estados del nodo a un método que procesa mensajes
+
+        Por ejemplo si el nodo se encuentra en NodeState.OK (estado estable), el método que
+        procesará los mensajes será `s_ok`
+        """
         states = {}
         for name, func in inspect.getmembers(self.__class__, inspect.isfunction):
             if name.startswith('s_'):
@@ -79,10 +92,16 @@ class ClusterNode(object):
         return states
 
     def save(self):
+        """
+        Persiste la información de monitoreo en disco
+        """
         with open(PERSISTENCE_COMPLETE_PATH, 'w+') as f:
             json.dump(self.health_monitoring, f)
 
     def load(self):
+        """
+        Carga la información de monitoreo del disco
+        """
         with open(PERSISTENCE_COMPLETE_PATH, 'r') as f:
             try:
                 self.health_monitoring = json.load(f)
@@ -94,24 +113,23 @@ class ClusterNode(object):
         self.channel = self.conn.channel()
 
     def setup_rabbit(self):
-        self.channel.exchange_declare(exchange='health_check', exchange_type='topic')
+        self.channel.exchange_declare(exchange='health_check', exchange_type='topic', auto_delete=True)
         self.channel.queue_declare(queue='health_check')
         self.channel.queue_bind(queue='health_check', exchange='health_check', routing_key='health_check')
-        self.channel.exchange_declare(exchange='election', exchange_type='topic')
+        self.channel.exchange_declare(exchange='election', exchange_type='topic', auto_delete=True)
         self.queue = f'node_{self.node_id}'
 
         self.channel.queue_declare(queue=self.queue, exclusive=True)
         self.channel.queue_bind(queue=self.queue, exchange='election', routing_key=str(self.node_id))
-        #for i in range(1, NODE_QUANTITY+1):
-        #    queue_name = f'node_{i}'
-        #    print(f"Creando {queue_name}")
-        #    self.channel.queue_declare(queue=queue_name)
-        #    self.channel.queue_bind(queue=queue_name, exchange='election', routing_key=str(i))
 
-    def check_init(self):
-        if self.node_id == NODE_QUANTITY:
-            self.broadcast_victory()
-            self.init_heartbeat()
+    def teardown(self):
+        self.channel.queue_delete(self.queue)
+        try:
+            self.channel.queue_delete(queue='health_check')
+        except ValueError:
+            logger.warning("ValueError found when deleting health_check queue")
+        self.channel.close()
+        self.conn.close()
 
     @property
     def all_ids(self):
@@ -128,7 +146,7 @@ class ClusterNode(object):
     def send_to(self, ids, message, channel=None):
         channel = channel if channel else self.channel
         for i in ids:
-            self.channel.basic_publish(exchange='election', routing_key=str(i), body=json.dumps(message))
+            channel.basic_publish(exchange='election', routing_key=str(i), body=json.dumps(message))
 
     def broadcast_victory(self, ids=None):
         targets = ids or self.all_ids
@@ -139,101 +157,105 @@ class ClusterNode(object):
         }
         self.send_to(targets, msg)
 
-    # Cambiar por consume que permite timeout
-    def get_message(self):
-        _, _, body = self.channel.basic_get(queue=self.queue)
-        return json.loads(body) if body else body
-
-    # TODA ESTA PARTE ES DEL HEATH-CHECK PER SE
-    def restart_node(self, node):
-        logger.warning("Restarteando %r", node)
+    @staticmethod
+    def restart_node(node):
+        logger.info("Restarteando nodo caido %r", node)
         start_container(name=node)
 
     def check_node_healths(self):
+        """
+        Itera sobre el dataset de notods y verifica si alguno superó el timeout, en caso de timeout
+        se llama al método que reinicia el nodo
+        """
         now = time.time()
-        logger.info("2) Dataset es %r", self.health_monitoring)
         for node, ts in self.health_monitoring.items():
             if now - ts > HEALTHCHECK_NODE_TIMEOUT:
-                logger.info("Ahora estoy en %r, el ts es %r", now, ts)
                 self.restart_node(node)
                 # Le vuelvo a setear el checkpoint para que no reintente muy rapido
                 self.health_monitoring[node] = now
                 self.save()
 
-    def health_check(self, conn):
-        # Channel.consume es bloqueante
+    def health_check(self):
+        """
+        Realiza el Health Check de los nodos a monitorear
+        """
+        conn = connect_retry()
         channel = conn.channel()
         logger.info("%s escuchando mensajes del heath check")
-        for _, _, msg in channel.consume(queue='health_check', inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
-            if msg:
-                logger.info("Recibi %r", msg)
-                msg = json.loads(msg)
-                source = msg['source']
-                now = time.time()
-                self.health_monitoring[source] = now
-                self.save()
-                logger.info("Actualizo %r con %r", source, now)
-                logger.info("Checkeo...valor actual %r", self.health_monitoring[source])
-            logger.info("1) Dataset es %r", self.health_monitoring)
-            self.check_node_healths()
+        try:
+            for _, _, msg in channel.consume(queue='health_check', inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
+                if msg:
+                    msg = json.loads(msg)
+                    logger.debig("HealthCheck recibe %r", msg)
+                    source = msg['source']
+                    now = time.time()
+                    self.health_monitoring[source] = now
+                    # Guardo el set actualizado de datos
+                    self.save()
+                # Al final de cada ciclo valido el estado de los nodos monitoreados
+                self.check_node_healths()
+        except SigTermException:
+            pass
+
+        # Teardown
+        channel.close()
+        conn.close()
 
     def init_healthcheck(self):
+        """
+        Inicia el subproceso encargargado de escuchar los mensajes de Health Check de los nodos a
+        monitorear
+        """
         if self.healthcheck_process:
             return
-        print("Iniciando heartbeat")
-        conn = connect_retry()
-        self.healthcheck_process = Process(target=self.health_check, args=(conn,))
+        logger.info("Iniciando healthcheck")
+        self.healthcheck_process = Process(target=self.health_check)
         self.healthcheck_process.daemon = True
         self.healthcheck_process.start()
 
-    # FIN DEL HEALTH CHECK
-
-    def heartbeat(self, conn):
+    def heartbeat(self):
+        """
+        Se envia un heartbeat a todos los nodos del cluster
+        """
+        conn = connect_retry()
         channel = conn.channel()
         ids = list(self.all_ids)
-        while True:
-            msg = {
-                'type': 'heartbeat'
-            }
-            #msg = f'heartbeat:{self.node_id}:{time.time()}'
-            self.send_to(ids, msg, channel=channel)
-            logger.debug("Sending heartbeat")
-            time.sleep(HEARTBEAT_SLEEP)
+        try:
+            while True:
+                msg = {
+                    'type': 'heartbeat'
+                }
+                self.send_to(ids, msg, channel=channel)
+                logger.debug("Sending heartbeat")
+                time.sleep(HEARTBEAT_SLEEP)
+        except SigTermException:
+            pass
+
+        # Teardown
+        channel.close()
+        conn.close()
 
     def init_heartbeat(self):
+        """
+        Se inicia un subproceso encargado de enviar un heartbeat a todos los nodos del cluster
+        """
         if self.heartbeat_process:
             return
-        print("Iniciando heartbeat")
-        conn = connect_retry()
-        self.heartbeat_process = Process(target=self.heartbeat, args=(conn,))
+        logger.info("Iniciando heartbeat")
+        self.heartbeat_process = Process(target=self.heartbeat)
         self.heartbeat_process.daemon = True
         self.heartbeat_process.start()
 
-    def process_msg(self, msg):
-        if msg[:9] == 'heartbeat':
-            hb, node_id, ts = msg.split(':')
-            logger.debug("Recibi heartbeat %r", ts)
-            now = time.time()
-            self.last_hb_processed = max(now, float(ts))
-
-    def check_heartbeat(self):
-        now = time.time()
-        delta = (now - self.last_hb_processed) if self.last_hb_processed else None
-        logger.debug(f"El delta es {delta}")
-        if delta and delta > HEARTBEAT_TIMEOUT:
-            print("El lider se murio xD")
-
     def proclamate_leader(self):
-        logger.info("Broadcasteo")
+        """
+        El nodo se autoproclama lider
+        """
         self.broadcast_victory()
-        logger.info("cambio vars")
         self.leader = True
         self.state = NodeState.OK
-        #TODO: Descomentar
         self.init_heartbeat()
         self.load()
-        logger.info("Cargando la info persistida, la misma es %r", self.health_monitoring)
-        logger.info("Por hacer healthcheck")
+        logger.debug("Cargando la info persistida, la misma es %r", self.health_monitoring)
         self.init_healthcheck()
 
     def demote(self):
@@ -267,6 +289,9 @@ class ClusterNode(object):
         return self.get_delta() > HEARTBEAT_TIMEOUT
 
     def start_election(self):
+        """
+        Inicia un proceso de eleccion
+        """
         msg = {
             'type': 'election_init',
             'source': self.node_id,
@@ -275,14 +300,17 @@ class ClusterNode(object):
         for major_id in majors:
             self.dataset[int(major_id)] = {'status': 'sent', 'ts': time.time()}
         self.send_to(majors, msg)
-        logger.info("De 'start_election' paso a 'waiting_ok'")
+        logger.debug("De 'start_election' paso a 'waiting_ok'")
         self.state = NodeState.ELECTION_WAITING_OK
         self.set_checkpoint()
 
     def set_winner(self, node_id):
+        """
+        Seteo el ganador de la elección
+        """
         logger.info("Setting %d as winner", node_id)
         if self.leader:
-            logger.warning("HAGO UN DEMOTE >>>>")
+            # Era lider y ya no
             self.demote()
         # Blanqueo mi data
         self.dataset = {}
@@ -306,7 +334,7 @@ class ClusterNode(object):
             'type': 'election_ok',
             'source': self.node_id,
         }
-        logger.info("Recibí election de %d y respondo ok", source)
+        logger.debug("Recibí election de %d y respondo ok", source)
         self.send_to([source, ], msg)
         self.start_election()
 
@@ -351,7 +379,7 @@ class ClusterNode(object):
         if msg:
             msgtype = msg['type']
             if msgtype == 'victory':
-                logger.info("Espero mensaje de victoria y recibi uno %r", msg)
+                logger.debug("Espero mensaje de victoria y recibi uno %r", msg)
                 self.process_victory(msg)
         else:
             # No recibi ningun mensaje, timeouteó el consume, debo chequear si se expiró el tiempo
@@ -361,22 +389,26 @@ class ClusterNode(object):
 
     def s_ok(self, msg):
         """
-        Cuando está todo
+        Cuando está todo ok
          - Espera Heartbeat
          - Procesa elecciones de otros nodos
         """
         if msg:
             msgtype = msg['type']
             if msgtype == 'election_init':
+                # Otro nodo inició una elección
                 if self.leader:
                     source = msg['source']
                     # Soy el lider no inicio ninguna elección, le refuerzo mi victoria
                     self.broadcast_victory(ids=[source])
                 else:
+                    # No soy lider, por lo cual proceso la elección
                     self.process_election(msg)
             elif msgtype == 'heartbeat':
+                # Recibí un heartbeat, actualizo el checkpoint
                 self.set_checkpoint()
             elif msgtype == 'victory':
+                # Recibí una victoria
                 self.process_victory(msg)
         elif not self.leader:
             # Me fijo cuando fue el ultimo heartbeat que recibi
@@ -395,7 +427,6 @@ class ClusterNode(object):
         if not major_ids:
             # Soy el mayor nodo, me autoproclamo lider
             logger.debug("%s se autoproclama liderr", self.node_id)
-            print("llamando al proclamate leader")
             self.proclamate_leader()
         else:
             # Hay mayores, por lo que hay que hacer una election
@@ -403,19 +434,35 @@ class ClusterNode(object):
             self.start_election()
 
     def run(self):
+        """
+        Loop principal del HealthCheck
+
+        Lee de la queue especifica del nodo y procesa mensajes
+        """
+        # Realiza operaciones específicas para el primer ciclo del nodo
         self.first_cycle()
         timeout = SLEEP_SECONDS
+
+        # Consume de la queue del nodo, en caso de timeout sale con resultado None, None, None
         for _, _, msg in self.channel.consume(queue=self.queue, inactivity_timeout=timeout):
             msg = json.loads(msg) if msg else None
 
+            # Se le pasa el mensaje a la función adecuada acorde al estado actual del nodo
             f = self.state_mapping[self.state]
             logger.debug("LLamo a %r con %r", f, msg)
             f(msg)
 
 
-if __name__ == '__main__':
+def main():
     node = ClusterNode()
     node.connect()
     node.setup_rabbit()
-    #node.check_init()
-    node.run()
+    try:
+        node.run()
+    except SigTermException:
+        pass
+    node.teardown()
+
+
+if __name__ == '__main__':
+    main()

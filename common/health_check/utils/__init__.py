@@ -41,7 +41,7 @@ def start_container(name):
 
 
 def get_node_id():
-    node_name = get_container_name()
+    node_name = _get_container_name()
     m = re.match(ID_REGEX, node_name)
     if m:
         data = m.groupdict()

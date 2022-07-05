@@ -20,7 +20,7 @@ def main():
     channel = conn.channel()
     node_name = get_container_name()
     logger.info(f"Inicio el nodo {node_name}")
-    channel.exchange_declare(exchange='health_check', exchange_type='topic')
+    channel.exchange_declare(exchange='health_check', exchange_type='topic', auto_delete=True)
 
     while True:
         logger.info("Mando heartbeat")

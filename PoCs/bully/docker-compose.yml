@@ -11,9 +11,9 @@ services:
       context: ../../
       dockerfile: health_check/Dockerfile
     deploy:
-      replicas: 4
+      replicas: 2
     environment:
-      - REPLICAS=4
+      - REPLICAS=2
       - LOG_LEVEL=DEBUG
     depends_on:
       - rabbit
