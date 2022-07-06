@@ -67,7 +67,7 @@ class Client:
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
                 self.posts_queue, self.comments_queue, self.chunksize).start()
 
-            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id).start()
+            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id)
             self.get_response(self.__callback)
             
             

@@ -23,9 +23,7 @@ class StatusChecker(Process):
 
 
     def start(self):
-        logging.info(f"IS ALIVE? {self.alive.value}")
         while self.alive.value == True:
-            logging.info(f"--- [SEND STATUS CHECK]")
             self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
             time.sleep(2)
 
@@ -73,7 +71,6 @@ class DataSender(Process):
             chunk = []
             for i, line in enumerate(reader):
                 if (i % self.chunksize == 0 and i > 0):
-                    time.sleep(1)
                     logging.info(f"CHUNK {len(chunk)}")
                     conn.send(body=json.dumps(chunk))
                     chunk = []
