@@ -23,6 +23,7 @@ class Connection:
                     time.sleep(1)
 
             self.channel = self.connection.channel()
+            self.channel.confirm_delivery()
 
         self.queue_name = queue_name
         self.exchange_name = exchange_name
@@ -57,12 +58,18 @@ class Connection:
         if routing_key == None:
             routing_key = self.queue_name
 
-        self.channel.basic_publish(
-            exchange=self.exchange_name,
-            routing_key=routing_key,  # self.queue_name, #
-            body=body,
-            properties=pika.BasicProperties(delivery_mode=2)  # message persistent
-        )
+        sent = False
+        while not sent:
+            try:
+                self.channel.basic_publish(
+                    exchange=self.exchange_name,
+                    routing_key=routing_key,  # self.queue_name, #
+                    body=body,
+                    properties=pika.BasicProperties(delivery_mode=2)  # message persistent
+                )
+                sent = True
+            except pika.exceptions.UnroutableError:
+                time.sleep(1)
 
     def recv(self, callback, start_consuming=True, auto_ack=True):
         self.channel.basic_qos(prefetch_count=1)
