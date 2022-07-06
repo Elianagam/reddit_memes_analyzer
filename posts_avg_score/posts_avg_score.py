@@ -85,6 +85,7 @@ class PostsAvgScore:
         if "end" in posts:
             if len(self.posts_ids) != 0:
                 self.end_recv[int(posts["end"]) - 1] = True
+                self.__store_state()
                 if False not in self.end_recv:
                     avg = self.__calculate_avg()
 

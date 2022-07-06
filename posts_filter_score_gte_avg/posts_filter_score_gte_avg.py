@@ -66,6 +66,7 @@ class PostsFilterScoreGteAvg:
             if self.avg_score is not None and len(self.arrived_early) == 0:
                 self.finish[int(posts["end"]) - 1] = True
                 logging.info(self.finish)
+                self.__store_state()
                 if False not in self.finish:
                     self.conn_send.send(json.dumps({"end": self.worker_num}))
                     self.finish = [False] * self.recv_workers

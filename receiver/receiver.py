@@ -97,6 +97,7 @@ class Receiver:
             self.client_conn_send.send(json.dumps(sink_recv))
         if "end" in sink_recv:
             self.count_end += 1
+            logging.info(f"RECV: {self.count_end} ends")
             if self.total_end == self.count_end:
                 logging.info(f"*** RECV ALL END... FINISH")
                 self.client_conn_send.send(json.dumps(
