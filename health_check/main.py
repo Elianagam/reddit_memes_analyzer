@@ -206,7 +206,8 @@ class ClusterNode(object):
                     self.save()
                 # Al final de cada ciclo valido el estado de los nodos monitoreados
                 self.check_node_healths()
-                self.ack_message(tag=method.delivery_tag, channel=channel)
+                if method:
+                    self.ack_message(tag=method.delivery_tag, channel=channel)
         except SigTermException:
             pass
 
@@ -490,7 +491,9 @@ class ClusterNode(object):
             f = self.state_mapping[self.state]
             logger.debug("LLamo a %r con %r", f, msg)
             f(msg)
-            self.ack_message(tag=method.delivery_tag, channel=self.channel)
+            if method:
+                self.ack_message(tag=method.delivery_tag, channel=self.channel)
+
 
 def main():
     node = ClusterNode()
