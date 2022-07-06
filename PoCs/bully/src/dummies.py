@@ -1,13 +1,14 @@
 from utils.connections import connect_retry
 from utils import get_container_name
 from common.health_check.monitored import MonitoredMixin
+from common.health_check.utils.signals import register_handler, SigTermException
 from multiprocessing import Queue
 import time
 import json
 import logging
 
-logger = logging.getLogger('carlitos')
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 logging.basicConfig(
@@ -15,14 +16,20 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 
+
 class SampleNode(MonitoredMixin):
     def __init__(self):
         self.queue = Queue()
+        register_handler()
         super().__init__()
 
     def run(self):
         self.start()
-        self.queue.get()
+        try:
+            self.queue.get()
+        except SigTermException:
+            logger.info("Recibo Sigterm")
+
         self.terminate()
         self.join()
 

@@ -28,6 +28,7 @@ from common.health_check.constants import (
     NODE_QUANTITY,
     PERSISTENCE_COMPLETE_PATH,
     SLEEP_SECONDS,
+    VICTORY_TIMEOUT,
 )
 from multiprocessing import Process
 from enum import Enum
@@ -51,6 +52,7 @@ class NodeState(Enum):
     #ELECTION_INIT = 'election_init'
     ELECTION_WAITING_OK = 'election_oks'
     ELECTION_WAITING_VICTORY = 'election_victory'
+    VICTORY_WAIT = 'victory_wait'
 
 
 STATES_MAPPING = {e.value: e for e in NodeState}
@@ -108,6 +110,13 @@ class ClusterNode(object):
         except:
             self.health_monitoring = {}
 
+    def delete_persistence(self):
+        if os.path.exists(PERSISTENCE_COMPLETE_PATH):
+            try:
+                os.remove(PERSISTENCE_COMPLETE_PATH)
+            except:
+                pass
+
     def connect(self):
         self.conn = connect_retry()
         self.channel = self.conn.channel()
@@ -130,6 +139,7 @@ class ClusterNode(object):
             logger.warning("ValueError found when deleting health_check queue")
         self.channel.close()
         self.conn.close()
+        self.delete_persistence()
 
     @property
     def all_ids(self):
@@ -247,17 +257,21 @@ class ClusterNode(object):
         self.heartbeat_process.daemon = True
         self.heartbeat_process.start()
 
+    def start_leader_duties(self):
+        self.init_heartbeat()
+        self.load()
+        logger.debug("Cargando la info persistida, la misma es %r", self.health_monitoring)
+        self.init_healthcheck()
+        self.state = NodeState.OK
+
     def proclamate_leader(self):
         """
         El nodo se autoproclama lider
         """
         self.broadcast_victory()
         self.leader = True
-        self.state = NodeState.OK
-        self.init_heartbeat()
-        self.load()
-        logger.debug("Cargando la info persistida, la misma es %r", self.health_monitoring)
-        self.init_healthcheck()
+        self.state = NodeState.VICTORY_WAIT
+        self.set_checkpoint()
 
     def demote(self):
         """
@@ -286,6 +300,9 @@ class ClusterNode(object):
         allowed_timeout = ELECTION_TIMEOUT * distance_to_top
         return self.get_delta() > allowed_timeout
 
+    def exceeded_victory_wait(self):
+        return self.get_delta() > VICTORY_TIMEOUT
+
     def exceeded_heartbeat_limit(self):
         return self.get_delta() > HEARTBEAT_TIMEOUT
 
@@ -313,6 +330,7 @@ class ClusterNode(object):
         if self.leader:
             # Era lider y ya no
             self.demote()
+            self.send_to([node_id], {'type': 'victory_ok', 'source': self.node_id})
         # Blanqueo mi data
         self.dataset = {}
         self.leader = False
@@ -387,6 +405,22 @@ class ClusterNode(object):
             # de espera para los mensajes de los nodos 'superiores'
             if self.exceeded_election_limit():
                 self.proclamate_leader()
+
+    def s_victory_wait(self, msg):
+        """
+        Soy el nuevo lider y espero a recibir un OK del lider actual para evitar que haya
+        dos lideres en simultaneo.
+        """
+        if msg:
+            msgtype = msg['type']
+            if msgtype == 'victory_ok':
+                source = msg['source']
+                logger.debug("Recibo mensaje del lider actual: %d", source)
+                self.start_leader_duties()
+        else:
+            if self.exceeded_victory_wait():
+                logger.info("Hubo timeout")
+                self.start_leader_duties()
 
     def s_ok(self, msg):
         """

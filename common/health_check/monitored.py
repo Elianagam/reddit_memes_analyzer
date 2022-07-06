@@ -8,6 +8,16 @@ import time
 import logging
 from multiprocessing import Process
 
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.DEBUG)
+
+
+logging.basicConfig(
+    format='[%(asctime)s] %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+
 
 class MonitoredMixin(object):
     def __init__(self):
@@ -21,7 +31,7 @@ class MonitoredMixin(object):
         channel.exchange_declare(exchange='health_check', exchange_type='topic', auto_delete=True)
         try:
             while True:
-                logging.debug("%s Sending Heartbeat", self.node_name)
+                logger.debug("%s Sending Heartbeat", self.node_name)
                 msg = json.dumps({'source': self.node_name})
                 channel.basic_publish(exchange='health_check', routing_key='health_check', body=msg)
                 time.sleep(HEALTHBEAT_DELAY)
@@ -31,16 +41,16 @@ class MonitoredMixin(object):
         conn.close()
 
     def start(self):
-        logging.info("%s Starting Heartbeat", self.node_name)
+        logger.info("%s Starting Heartbeat", self.node_name)
         process = Process(target=self._run)
         process.daemon = True
         process.start()
         self.monitoring_process = process
 
     def terminate(self):
-        logging.info("Terminating Heartbeat")
+        logger.info("Terminating Heartbeat")
         self.monitoring_process.terminate()
 
     def join(self):
         self.monitoring_process.join()
-        logging.info("Terminated Heartbeat")
+        logger.info("Terminated Heartbeat")
