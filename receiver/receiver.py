@@ -5,9 +5,10 @@ import json
 import sys
 from multiprocessing import Process
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
 
-class Receiver:
+class Receiver(MonitoredMixin):
     def __init__(self, comments_queue, posts_queue, send_workers_comments,
         send_workers_posts, recv_post_queue, recv_comments_queue, send_response_queue,
         students_queue, avg_queue, image_queue):
@@ -39,9 +40,11 @@ class Receiver:
         #self.conn_posts.close()
         #self.conn_comments.close()
         #self.conn_recv_students.close()
+        self.mon_exit()
         sys.exit(0)
 
     def start(self):
+        self.mon_start()
         self.client_conn_recv.recv(self.__callback_post, start_consuming=False)
         self.client_conn_recv_c.recv(self.__callback_comment, start_consuming=False)
         

@@ -40,17 +40,21 @@ class MonitoredMixin(object):
         channel.close()
         conn.close()
 
-    def start(self):
+    def mon_start(self):
         logger.info("%s Starting Heartbeat", self.node_name)
         process = Process(target=self._run)
         process.daemon = True
         process.start()
         self.monitoring_process = process
 
-    def terminate(self):
+    def mon_terminate(self):
         logger.info("Terminating Heartbeat")
         self.monitoring_process.terminate()
 
-    def join(self):
+    def mon_join(self):
         self.monitoring_process.join()
         logger.info("Terminated Heartbeat")
+
+    def mon_exit(self):
+        self.mon_terminate()
+        self.mon_join()

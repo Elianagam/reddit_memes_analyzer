@@ -24,14 +24,14 @@ class SampleNode(MonitoredMixin):
         super().__init__()
 
     def run(self):
-        self.start()
+        self.mon_start()
         try:
             self.queue.get()
         except SigTermException:
             logger.info("Recibo Sigterm")
 
-        self.terminate()
-        self.join()
+        self.mon_terminate()
+        self.mon_join()
 
 
 def main2():

@@ -3,9 +3,10 @@ import logging
 
 import json
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
 
-class PostsAvgScore:
+class PostsAvgScore(MonitoredMixin):
     def __init__(self, queue_recv, queue_send, recv_workers):
         self.conn_recv = Connection(queue_name=queue_recv)
         self.conn_send = Connection(exchange_name=queue_send)
@@ -16,10 +17,12 @@ class PostsAvgScore:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
+        self.mon_exit()
         self.conn_recv.close()
         self.conn_send.close()
 
     def start(self):
+        self.mon_start()
         self.conn_recv.recv(self.__callback)
         self.exit_gracefully()
 

@@ -3,6 +3,7 @@ import logging
 
 import json
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
 
 class PostsMaxAvgSentiment:
@@ -15,10 +16,12 @@ class PostsMaxAvgSentiment:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
+        self.mon_exit()
         self.conn_recv.close()
         self.conn_send.close()
 
     def start(self):
+        self.mon_start()
         self.conn_recv.recv(self.__callback)
 
     def __callback(self, ch, method, properties, body):

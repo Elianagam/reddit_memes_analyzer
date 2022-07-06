@@ -3,8 +3,10 @@ import signal
 
 import json
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
-class PostsAvgSentiment:
+
+class PostsAvgSentiment(MonitoredMixin):
     def __init__(self, queue_recv, queue_send):
         self.conn_recv = Connection(queue_name=queue_recv)
         self.conn_send = Connection(queue_name=queue_send)
@@ -13,6 +15,7 @@ class PostsAvgSentiment:
     def exit_gracefully(self, *args):
         self.conn_recv.close()
         self.conn_send.close()
+        self.mon_exit()
 
     def __callback(self, ch, method, properties, body):
         posts = json.loads(body)
@@ -25,6 +28,7 @@ class PostsAvgSentiment:
         self.conn_send.send(json.dumps(result))
 
     def start(self):
+        self.mon_start()
         self.conn_recv.recv(self.__callback)
 
     def __parser(self, posts):

@@ -4,9 +4,10 @@ import pika
 
 import json
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
 
-class JoinCommentsWithPosts:
+class JoinCommentsWithPosts(MonitoredMixin):
     def __init__(self, queue_recv_comments, queue_recv_post, queue_send_students, 
             queue_send_sentiments, chunksize, recv_workers_comments, recv_workers_posts, send_workers):
         self.conn_recv_pst = Connection(queue_name=queue_recv_post)
@@ -23,11 +24,13 @@ class JoinCommentsWithPosts:
         self.send_workers = send_workers
 
     def exit_gracefully(self, *args):
+        self.mon_exit()
         self.conn_recv_pst.close()
         self.conn_send_st.close()
         self.conn_send_se.close()
 
     def start(self):
+        self.mon_start()
         self.conn_recv_cmt.recv(self.__callback_recv_comments, start_consuming=False)
         self.conn_recv_pst.recv(self.__callback_recv_posts)
 
