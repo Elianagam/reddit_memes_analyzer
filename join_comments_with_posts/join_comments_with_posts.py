@@ -13,7 +13,7 @@ class JoinCommentsWithPosts:
         self.conn_recv_pst = Connection(queue_name=queue_recv_post)
         self.conn_recv_cmt = Connection(queue_name=queue_recv_comments, conn=self.conn_recv_pst)
 
-        self.conn_send_st = Connection(queue_name=queue_send_students)
+        self.conn_send_st = Connection(exchange_name=queue_send_students, exchange_type='topic')
         self.conn_send_se = Connection(exchange_name=queue_send_sentiments, exchange_type='topic')
 
         self.chunksize = chunksize
@@ -137,7 +137,7 @@ class JoinCommentsWithPosts:
         return False
 
     def __send_data(self, data, key):
-        self.conn_send_st.send(data)
+        self.conn_send_st.send(data, routing_key=key)
         self.conn_send_se.send(data, routing_key=key)
 
     def __add_comments(self, list_comments, msg_hash):

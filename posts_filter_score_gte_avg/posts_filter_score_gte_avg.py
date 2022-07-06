@@ -8,15 +8,17 @@ from atomicwrites import atomic_write
 
 
 class PostsFilterScoreGteAvg:
-    def __init__(self, queue_recv_avg, queue_recv_students, queue_send, worker_num, chunksize=10):
-        self.conn_recv_students = Connection(queue_name=queue_recv_students)
+    def __init__(self, queue_recv_avg, queue_recv_students, queue_send, worker_num, recv_workers, chunksize=10):
+        self.conn_recv_students = Connection(exchange_name=queue_recv_students, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_recv_avg = Connection(exchange_name=queue_recv_avg, bind=True, conn=self.conn_recv_students)
         self.conn_send = Connection(queue_name=queue_send)
         self.chunksize = chunksize
         self.worker_num = worker_num
+        self.recv_workers = recv_workers
 
         self.avg_score = None
         self.arrived_early = []
+        self.finish = [False] * recv_workers
 
         self.__load_state()
 
@@ -40,14 +42,16 @@ class PostsFilterScoreGteAvg:
 
         if os.path.exists(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt'):
             with open(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt') as f:
-                avg = f.readline()
+                avg = f.readline().rstrip('\n')
                 if "None" != avg:
                     self.avg_score = float(avg)
 
-            logging.info(f"loaded: {self.avg_score} avg")
+                self.finish = json.loads(f.readline())
 
-    def __store_avg(self):
-        store = "{}".format(self.avg_score)
+            logging.info(f"loaded: {self.avg_score} avg, finish: {self.finish}")
+
+    def __store_state(self):
+        store = "{}\n{}".format(self.avg_score, json.dumps(self.finish))
         with atomic_write(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt', overwrite=True) as f:
             f.write(store)
 
@@ -57,8 +61,20 @@ class PostsFilterScoreGteAvg:
 
     def __callback_students(self, ch, method, properties, body):
         posts = json.loads(body)
+
         if "end" in posts:
-            self.conn_send.send(json.dumps(posts))
+            if self.avg_score is not None and len(self.arrived_early) == 0:
+                self.finish[int(posts["end"]) - 1] = True
+                logging.info(self.finish)
+                if False not in self.finish:
+                    self.conn_send.send(json.dumps({"end": self.worker_num}))
+                    self.finish = [False] * self.recv_workers
+                    self.avg_score = None
+                    self.__store_state()
+            elif self.avg_score is None and len(self.arrived_early) != 0:
+                self.finish[int(posts["end"]) - 1] = True
+                logging.info(self.finish)
+                self.__store_state()
         elif self.avg_score is not None:
             self.__parser(posts)
         else:
@@ -73,10 +89,14 @@ class PostsFilterScoreGteAvg:
         
         if "end" in avg:
             logging.info(f"[AVG END] {self.avg_score}")
-            self.__send_arrive_early()
         elif "posts_score_avg" in avg:
             self.avg_score = float(avg["posts_score_avg"])
-            self.__store_avg()
+            self.__send_arrive_early()
+            if False not in self.finish:
+                self.conn_send.send(json.dumps({"end": self.worker_num}))
+                self.finish = [False] * self.recv_workers
+                self.avg_score = None
+            self.__store_state()
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 

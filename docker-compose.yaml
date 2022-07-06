@@ -83,6 +83,7 @@ services:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -99,6 +100,7 @@ services:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
@@ -118,6 +120,7 @@ services:
       - QUEUE_SEND=student_url_queue
       - WORKER_NUM=1
       - CHUNKSIZE=400
+      - RECV_WORKERS=2
     volumes:
       - ./data_base:/data_base
     networks:
@@ -138,6 +141,7 @@ services:
       - QUEUE_SEND=student_url_queue
       - WORKER_NUM=2
       - CHUNKSIZE=400
+      - RECV_WORKERS=2
     volumes:
       - ./data_base:/data_base
     networks:

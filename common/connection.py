@@ -1,20 +1,28 @@
 import pika
+import pika.exceptions
 import time
 import logging
-import json
 
 
 class Connection:
-    def __init__(self, queue_name='', exchange_name='', bind=False, 
-        conn=None, exchange_type='fanout', routing_key='', timeout=15):
-        if conn != None:
+    def __init__(self, queue_name='', exchange_name='', bind=False,
+                 conn=None, exchange_type='fanout', routing_key='', timeout=15):
+        if conn is not None:
             self.connection = conn.connection
             self.channel = conn.channel
         else:
             time.sleep(timeout)
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-            self.channel = self.connection.channel()      
+            connected = False
+            while not connected:
+                try:
+                    self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+                    connected=True
 
+                except pika.exceptions.AMQPConnectionError:
+                    logging.info("Rabbitmq not conected yet")
+                    time.sleep(1)
+
+            self.channel = self.connection.channel()
 
         self.queue_name = queue_name
         self.exchange_name = exchange_name
