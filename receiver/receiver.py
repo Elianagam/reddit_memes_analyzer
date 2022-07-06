@@ -117,7 +117,7 @@ class Receiver:
         msg = {}
 
         if self.count_end == self.total_end:
-            msg = {"status": "FINISH", "client_id": self.actual_client}
+            msg = {"status": "FINISH"}
             self.actual_client = None
             self.count_end = 0
             self.data_to_send = 0
@@ -126,13 +126,14 @@ class Receiver:
                 self.actual_client = recv['client_id']
                 msg = {"status": "AVAILABLE"}
             elif self.actual_client == recv['client_id']:
-                msg = {"status": "PENDING", "client_id": self.actual_client}
+                msg = {"status": "PENDING"}
             else:
-                msg = {"status": "BUSY", "client_id": self.actual_client}
+                msg = {"status": "BUSY"}
         else:
             if self.actual_client == recv['client_id']:
                 msg = {"status": "PENDING"}
             else:
-                msg = {"status": "BUSY", "client_id": self.actual_client}
+                msg = {"status": "BUSY"}
+        msg["client_id"] = self.actual_client
         logging.info(f"STATUS: {recv} - response: {msg['status']} - CLIENT: {self.actual_client}")
         self.client_conn_send.send(json.dumps(msg))
