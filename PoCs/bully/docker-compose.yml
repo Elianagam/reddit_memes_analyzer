@@ -22,15 +22,15 @@ services:
       - ./persistence/:/tmp/persistence/
 
   testnode:
+    container_name: testnode
     build:
-      context: src
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: PoCs/bully/src/Dockerfile
     entrypoint: ["python3", "dummies.py"]
-    deploy:
-      replicas: 2
     depends_on:
       - rabbit
     environment:
       - PYTONBUFFERED=1
+      - CONTAINER_NAME=testnode
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

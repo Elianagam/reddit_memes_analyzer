@@ -14,7 +14,7 @@ class MonitoredMixin(object):
         self.monitoring_process = None
         self.node_name = get_container_name()
 
-    def run(self):
+    def _run(self):
         register_handler()
         conn = connect_retry()
         channel = conn.channel()
@@ -32,7 +32,7 @@ class MonitoredMixin(object):
 
     def start(self):
         logging.info("%s Starting Heartbeat", self.node_name)
-        process = Process(target=self.run)
+        process = Process(target=self._run)
         process.daemon = True
         process.start()
         self.monitoring_process = process

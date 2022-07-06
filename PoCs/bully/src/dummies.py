@@ -1,5 +1,7 @@
 from utils.connections import connect_retry
 from utils import get_container_name
+from common.health_check.monitored import MonitoredMixin
+from multiprocessing import Queue
 import time
 import json
 import logging
@@ -13,9 +15,19 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 
+class SampleNode(MonitoredMixin):
+    def __init__(self):
+        self.queue = Queue()
+        super().__init__()
+
+    def run(self):
+        self.start()
+        self.queue.get()
+        self.terminate()
+        self.join()
 
 
-def main():
+def main2():
     conn = connect_retry()
     channel = conn.channel()
     node_name = get_container_name()
@@ -31,4 +43,5 @@ def main():
 
 if __name__ == '__main__':
     logger.info("Inicio dummy")
-    main()
+    x = SampleNode()
+    x.run()

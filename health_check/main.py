@@ -102,11 +102,11 @@ class ClusterNode(object):
         """
         Carga la información de monitoreo del disco
         """
-        with open(PERSISTENCE_COMPLETE_PATH, 'r') as f:
-            try:
+        try:
+            with open(PERSISTENCE_COMPLETE_PATH, 'r') as f:
                 self.health_monitoring = json.load(f)
-            except:
-                self.health_monitoring = {}
+        except:
+            self.health_monitoring = {}
 
     def connect(self):
         self.conn = connect_retry()
@@ -168,6 +168,7 @@ class ClusterNode(object):
         se llama al método que reinicia el nodo
         """
         now = time.time()
+        logger.debug("Current health monitoring %r", self.health_monitoring)
         for node, ts in self.health_monitoring.items():
             if now - ts > HEALTHCHECK_NODE_TIMEOUT:
                 self.restart_node(node)
@@ -186,7 +187,7 @@ class ClusterNode(object):
             for _, _, msg in channel.consume(queue='health_check', inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
                 if msg:
                     msg = json.loads(msg)
-                    logger.debig("HealthCheck recibe %r", msg)
+                    logger.debug("HealthCheck recibe %r", msg)
                     source = msg['source']
                     now = time.time()
                     self.health_monitoring[source] = now
