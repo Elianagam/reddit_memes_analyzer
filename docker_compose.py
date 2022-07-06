@@ -28,6 +28,10 @@ services:
       - SEND_WORKERS_POSTS={}
       - RECV_POSTS_QUEUE=client_posts_queue
       - RECV_COMMENTS_QUEUE=client_comments_queue
+      - SEND_RESPONSE_QUEUE=client_response_queue
+      - STUDENTS_QUEUE=student_url_queue
+      - AVG_QUEUE=posts_avg_score_queue
+      - IMAGE_QUEUE=post_avg_sentiments_queue
       - CONTAINER_NAME=receiver
     networks:
       - rabbitmq
@@ -105,7 +109,6 @@ networks:
       driver: default
       config:
         - subnet: 172.25.125.0/24
->>>>>>> origin/main
 """
 
 COMENTS_FILTERS = """
@@ -184,7 +187,7 @@ POSTS_FILTER = """
       - rabbitmq
 """
 
-REDUCE_SENTIMETS = """                                                                                                                                                                                                                              
+REDUCE_SENTIMETS = """
   posts_reduce_avg_sentiment_{id}:
     container_name: posts_reduce_avg_sentiment_{id}
     image: posts_reduce_avg_sentiment:latest

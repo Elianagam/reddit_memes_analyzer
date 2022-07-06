@@ -1,10 +1,5 @@
 """
-Prueba de Concepto para una clase que implemente el algoritmo de lider
-
-# TODO:
- [ ] - El nodo con mayor ID se autoproclame lider al inciarse
- [ ] - Los nodos deben leer actualizaciones del lider y timeoutear en caso de no recibir cada N tiempo
- [ ] - Ver como hacer la elección
+Módulo que maneja los nodos de HealthChecking
 """
 import logging
 import subprocess
