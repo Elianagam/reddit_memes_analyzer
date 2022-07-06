@@ -102,7 +102,7 @@ class Receiver:
                 self.__send_finish()
 
     def __send_finish(self):
-        worker_key = f"status.client{self.actual_client}"
+        worker_key = f"response.client{self.actual_client}"
         logging.info(f"*** RECV ALL END... FINISH - {worker_key}")
         self.client_conn_send.send(body=json.dumps(
             {"status": "FINISH", 
@@ -138,7 +138,7 @@ class Receiver:
                 msg = {"status": "BUSY"}
 
         
-        worker_key = f"status.client{recv['client_id']}"
+        worker_key = f"response.client{recv['client_id']}"
         logging.info(f"RECV FROM: {recv['client_id']} - response: {msg['status']} - CLIENT: {self.actual_client}")
         
         self.client_conn_send.send(body=json.dumps(msg), routing_key=worker_key)

@@ -87,3 +87,6 @@ class Connection:
 
     def get_channel(self):
         return self.channel
+
+    def get_queue(self):
+        return self.queue_name
