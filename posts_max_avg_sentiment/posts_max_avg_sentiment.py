@@ -1,8 +1,8 @@
 import os
 import signal
 import logging
-
 import json
+
 from common.connection import Connection
 from atomicwrites import atomic_write
 
@@ -14,18 +14,11 @@ class PostsMaxAvgSentiment:
 
         self.recv_workers = recv_workers
         self.max_avg = {"url": None, "avg_sentiment": 0}
-        self.end_recv = 0
+        self.end_recv = [False] * recv_workers
 
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.__load_state()
-
-    def __proces_ended(self):
-        if self.end_recv == self.recv_workers:
-            self.__end_recv(json.dumps({"end": True}))
-            self.end_recv = 0
-            self.max_avg = {"url": None, "avg_sentiment": 0}
-            self.__store_state()
 
     def __load_state(self):
         if os.path.exists('./data_base/post_max_avg_sentiment_state.txt'):
@@ -38,10 +31,10 @@ class PostsMaxAvgSentiment:
                     "url": url,
                     "avg_sentiment": float(f.readline()),
                 }
-                self.end_recv = int(f.readline())
+                self.end_recv = json.loads(f.readline())
 
     def __store_state(self):
-        store = "{}\n{}\n{}".format(self.max_avg["url"], self.max_avg["avg_sentiment"], self.end_recv)
+        store = "{}\n{}\n{}".format(self.max_avg["url"], self.max_avg["avg_sentiment"], json.dumps(self.end_recv))
         with atomic_write('./data_base/post_max_avg_sentiment_state.txt', overwrite=True) as f:
             f.write(store)
 
@@ -50,21 +43,20 @@ class PostsMaxAvgSentiment:
         self.conn_send.close()
 
     def start(self):
-        self.__proces_ended()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
         posts = json.loads(body)
 
         if "end" in posts:
-            self.end_recv += 1
-            self.__store_state()
+            if self.max_avg["url"] is not None:
+                self.end_recv[int(posts["end"]) - 1] = True
 
-            if self.end_recv == self.recv_workers:
-                self.__end_recv(posts)
-                self.end_recv = 0
-                self.max_avg = {"url": None, "avg_sentiment": 0}
-                self.__store_state()
+                if False not in self.end_recv:
+                    self.__end_recv(posts)
+                    self.end_recv = [False] * self.recv_workers
+                    self.max_avg = {"url": None, "avg_sentiment": 0}
+                    self.__store_state()
         else:
             self.__get_max_avg_sentiment(posts)
 
@@ -74,9 +66,8 @@ class PostsMaxAvgSentiment:
         # Send only post with max avg sentiment
         logging.info(f" --- [POST MAX AVG SENTIMENT] {self.max_avg}")
 
-        if self.max_avg["url"] != None:
-            download = self.__download_image()
-            self.conn_send.send(json.dumps(download))
+        download = self.__download_image()
+        self.conn_send.send(json.dumps(download))
 
     def __get_max_avg_sentiment(self, posts):
         for post in posts:

@@ -4,9 +4,11 @@ import signal
 import json
 from common.connection import Connection
 
+
 class PostsAvgSentiment:
-    def __init__(self, queue_recv, queue_send):
-        self.conn_recv = Connection(queue_name=queue_recv)
+    def __init__(self, queue_recv, queue_send, worker_num):
+        self.worker_num = worker_num
+        self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(queue_name=queue_send)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
@@ -18,7 +20,7 @@ class PostsAvgSentiment:
         posts = json.loads(body)
 
         if "end" in posts:
-            self.conn_send.send(json.dumps(posts))
+            self.conn_send.send(json.dumps({"end": self.worker_num}))
         else:
             result = self.__parser(posts)
             self.conn_send.send(json.dumps(result))

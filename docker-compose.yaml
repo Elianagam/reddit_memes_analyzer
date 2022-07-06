@@ -156,6 +156,7 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -171,6 +172,7 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 

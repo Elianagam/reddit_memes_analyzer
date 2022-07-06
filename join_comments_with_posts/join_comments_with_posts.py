@@ -14,7 +14,7 @@ class JoinCommentsWithPosts:
         self.conn_recv_cmt = Connection(queue_name=queue_recv_comments, conn=self.conn_recv_pst)
 
         self.conn_send_st = Connection(queue_name=queue_send_students)
-        self.conn_send_se = Connection(queue_name=queue_send_sentiments)
+        self.conn_send_se = Connection(exchange_name=queue_send_sentiments, exchange_type='topic')
 
         self.chunksize = chunksize
 
@@ -76,6 +76,8 @@ class JoinCommentsWithPosts:
         for f in os.listdir(directory):
             os.remove(os.path.join(directory, f))
 
+        self.__store_finish()
+
         os.remove("./data_base/join_clean")
 
     def exit_gracefully(self, *args):
@@ -83,19 +85,7 @@ class JoinCommentsWithPosts:
         self.conn_send_st.close()
         self.conn_send_se.close()
 
-    def __stored_is_finished(self):
-        logging.info(
-            f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
-        if False not in self.finish["posts"] \
-                and False not in self.finish["comments"]:
-            self.__send_join_data()
-            # Send end msg to n workers
-            for i in range(self.send_workers):
-                self.__send_data({"end": True})
-            self.__clear_old_state()
-
     def start(self):
-        self.__stored_is_finished()
         self.conn_recv_cmt.recv(self.__callback_recv_comments, start_consuming=False, auto_ack=False)
         self.conn_recv_pst.recv(self.__callback_recv_posts, auto_ack=False)
 
@@ -127,23 +117,28 @@ class JoinCommentsWithPosts:
 
     def __finish(self, my_key, other_key, readed, my_workers, other_workers):
         if "end" in readed:
+            if len(self.msg_hash_list) == 0:
+                return True
+
             self.finish[my_key][int(readed["end"]) - 1] = True
-            self.__store_finish()
             logging.info(
                 f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
+
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
                 self.__send_join_data()
                 # Send end msg to n workers
                 for i in range(self.send_workers):
-                    self.__send_data(readed)
+                    key = i + 1
+                    worker_key = f"{key}"
+                    self.__send_data(json.dumps(readed), worker_key)
                 self.__clear_old_state()
             return True
         return False
 
-    def __send_data(self, data):
-        self.conn_send_st.send(json.dumps(data))
-        self.conn_send_se.send(json.dumps(data))
+    def __send_data(self, data, key):
+        self.conn_send_st.send(data)
+        self.conn_send_se.send(data, routing_key=key)
 
     def __add_comments(self, list_comments, msg_hash):
         for c in list_comments:
@@ -178,11 +173,17 @@ class JoinCommentsWithPosts:
             if not "url" in self.join_dict[post_id]:
                 continue
             if len(chunk) == self.chunksize:
-                self.__send_data(chunk)
+                data = json.dumps(chunk)
+                key = ((hash(data) % self.send_workers) + 1)
+                worker_key = f"{key}"
+                self.__send_data(data, worker_key)
                 chunk = []
 
             chunk.append(post)
 
         # send last data in chunk
         if len(chunk) > 0:
-            self.__send_data(chunk)
+            data = json.dumps(chunk)
+            key = ((hash(data) % self.send_workers) + 1)
+            worker_key = f"{key}"
+            self.__send_data(data, worker_key)
