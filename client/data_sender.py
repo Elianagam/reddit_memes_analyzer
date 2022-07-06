@@ -3,6 +3,7 @@ import csv
 import json
 import signal
 import sys
+import time
 
 from multiprocessing import Process
 from common.connection import Connection
@@ -71,6 +72,7 @@ class DataSender(Process):
             chunk = []
             for i, line in enumerate(reader):
                 if (i % self.chunksize == 0 and i > 0):
+                    time.sleep(1)
                     logging.info(f"CHUNK {len(chunk)}")
                     conn.send(body=json.dumps(chunk))
                     chunk = []

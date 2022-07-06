@@ -99,7 +99,11 @@ class Receiver:
             self.count_end += 1
             if self.total_end == self.count_end:
                 logging.info(f"*** RECV ALL END... FINISH")
-                self.client_conn_send.send(json.dumps({"status": "FINISH", "data": self.data_to_send}))
+                self.client_conn_send.send(json.dumps(
+                    {"status": "FINISH", 
+                    "data": self.data_to_send, 
+                    "client_id": self.actual_client})
+                )
                 self.count_end = 0
                 self.data_to_send = 0
                 self.actual_client = None
@@ -110,20 +114,18 @@ class Receiver:
         # recv 1 avg_score and 1 bytes_image
         msg = {}
 
-        if self.count_end == self.total_end:
-            msg = {"status": "FINISH"}
-            self.actual_client = None
-            self.count_end = 0
-        elif self.count_end == 0:
+        if self.count_end == 0:
             if self.actual_client == None:
                 self.actual_client = recv['client_id']
                 msg = {"status": "AVAILABLE"}
+            elif self.actual_client == recv['client_id']:
+                msg = {"status": "PENDING", "client_id": self.actual_client}
             else:
-                msg = {"status": "BUSY"}
+                msg = {"status": "BUSY", "client_id": self.actual_client}
         else:
             if self.actual_client == recv['client_id']:
                 msg = {"status": "PENDING"}
             else:
-                msg = {"status": "BUSY"}
-        logging.info(f"STATUS: {recv} - response: {msg['status']}")
+                msg = {"status": "BUSY", "client_id": self.actual_client}
+        logging.info(f"STATUS: {recv} - response: {msg['status']} - CLIENT: {self.actual_client}")
         self.client_conn_send.send(json.dumps(msg))

@@ -63,6 +63,7 @@ class Client:
         if status == "AVAILABLE":
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
                 self.posts_queue, self.comments_queue, self.chunksize).start()
+
             self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id).start()
             self.get_response(self.__callback)
             
@@ -84,7 +85,7 @@ class Client:
 
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
-        
+        logging.info(f"status: {sink_recv}")
         if sink_recv["status"] == "FINISH":
             logging.info(f"[CLOSE CLIENT]")
             self.alive.value = False
@@ -93,8 +94,12 @@ class Client:
                 self.exit_gracefully()
 
         elif sink_recv["status"] == "BUSY":
-            logging.info("System is busy, try later...")
-            self.exit_gracefully()
+            if self.client_id != sink_recv["client_id"]:
+                logging.info("System is busy, try later...")
+                self.exit_gracefully()
+            else:
+                self.conn_status_send.send(body)
+                logging.info("Another client connected")
 
         elif sink_recv["status"] == "AVAILABLE":
             self.alive.value = True
@@ -107,6 +112,7 @@ class Client:
             if body != None:
                 msg = json.loads(body)
                 if "status" in msg:
+                    self.channel.basic_ack(method.delivery_tag)
                     return msg["status"]
                 self.channel.basic_ack(method.delivery_tag)
 

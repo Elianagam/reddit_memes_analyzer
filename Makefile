@@ -10,14 +10,17 @@ docker-client-image:
 .PHONY: docker-client-image
 
 docker-client-run:
-	# docker run -it --network=reddit_memes_analyzer_rabbitmq "client:latest"
-	docker-compose -f ./client/docker-compose-client.yaml up -d --build --remove-orphans
-	docker-compose -f ./client/docker-compose-client.yaml logs -f
+		docker run --env-file client/.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
+
 .PHONY: docker-client-run
 
-docker-client-logs:
-	docker-compose -f ./client/docker-compose-client.yaml logs -f
-.PHONY: docker-client-logs
+docker-client-run-2:
+	docker run --env-file client/c2.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
+.PHONY: docker-client-run-2
+
+docker-client-run-3:
+	docker run --env-file client/c2.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
+.PHONY: docker-client-run-3
 
 docker-client-down:
 	docker-compose -f ./client/docker-compose-client.yaml stop -t 2
