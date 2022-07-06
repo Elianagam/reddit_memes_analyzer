@@ -21,17 +21,15 @@ class Receiver:
         # CLIENT RECV REQUEST
         self.client_conn_recv = Connection(queue_name=recv_post_queue)
         self.client_conn_recv_c = Connection(queue_name=recv_comments_queue, conn=self.client_conn_recv)
+        self.conn_status_recv = Connection(queue_name=status_check_queue, conn=self.client_conn_recv)
         
         # CLIENT SEND RESPONSE
-        self.client_conn_send = Connection(queue_name=send_response_queue, conn=self.client_conn_recv)
+        self.client_conn_send = Connection(exchange_name=send_response_queue, exchange_type='topic', conn=self.client_conn_recv)
 
         # SYSTEM RECV
-        self.students_recved = []
         self.conn_recv_students = Connection(queue_name=students_queue, conn=self.client_conn_recv)
         self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.client_conn_recv)
         self.conn_recv_image = Connection(queue_name=image_queue, conn=self.client_conn_recv)
-
-        self.conn_status_recv = Connection(queue_name=status_check_queue, conn=self.client_conn_recv)
 
         # SYSTEM SEND
         self.conn_comments = Connection(exchange_name=comments_queue, exchange_type='topic')
@@ -94,31 +92,43 @@ class Receiver:
 
         if not "end" in sink_recv:
             self.data_to_send += 1
-            self.client_conn_send.send(json.dumps(sink_recv))
+            worker_key = f"response.client{self.actual_client}"
+
+            self.client_conn_send.send(body=json.dumps(sink_recv), routing_key=worker_key)
         if "end" in sink_recv:
             self.count_end += 1
-            logging.info(f"RECV: {self.count_end} ends")
-            if self.total_end == self.count_end:
-                logging.info(f"*** RECV ALL END... FINISH")
-                self.client_conn_send.send(json.dumps({"status": "FINISH", "data": self.data_to_send}))
-                self.count_end = 0
-                self.data_to_send = 0
-                self.actual_client = None
 
+            if self.total_end == self.count_end:                
+                self.__send_finish()
+
+    def __send_finish(self):
+        worker_key = f"response.client{self.actual_client}"
+        logging.info(f"*** RECV ALL END... FINISH - {worker_key}")
+        self.client_conn_send.send(body=json.dumps(
+            {"status": "FINISH", 
+            "data": self.data_to_send, 
+            "client_id": self.actual_client}),
+            routing_key=worker_key
+        )
+        self.count_end = 0
+        self.data_to_send = 0
+        self.actual_client = None
 
     def __callback_status(self, ch, method, properties, body):
         recv = json.loads(body)
-        # recv 1 avg_score and 1 bytes_image
         msg = {}
 
-        if self.count_end == self.total_end:
-            msg = {"status": "FINISH"}
-            self.actual_client = None
-            self.count_end = 0
-        elif self.count_end == 0:
+#        if self.count_end == self.total_end:
+#            msg = {"status": "FINISH"}
+#            self.actual_client = None
+#            self.count_end = 0
+#            self.data_to_send = 0
+        if self.count_end == 0:
             if self.actual_client == None:
                 self.actual_client = recv['client_id']
                 msg = {"status": "AVAILABLE"}
+            elif self.actual_client == recv['client_id']:
+                msg = {"status": "PENDING"}
             else:
                 msg = {"status": "BUSY"}
         else:
@@ -126,5 +136,9 @@ class Receiver:
                 msg = {"status": "PENDING"}
             else:
                 msg = {"status": "BUSY"}
-        logging.info(f"STATUS: {recv} - response: {msg['status']}")
-        self.client_conn_send.send(json.dumps(msg))
+
+        
+        worker_key = f"response.client{recv['client_id']}"
+        logging.info(f"RECV FROM: {recv['client_id']} - response: {msg['status']} - CLIENT: {self.actual_client}")
+        
+        self.client_conn_send.send(body=json.dumps(msg), routing_key=worker_key)

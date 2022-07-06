@@ -3,13 +3,14 @@ import csv
 import json
 import signal
 import sys
+import time
 
 from multiprocessing import Process
 from common.connection import Connection
 
 
 class StatusChecker(Process):
-    def __init__(self, conn_status_send, alive, client_id):
+    def __init__(self, alive, conn_status_send, client_id):
         super(StatusChecker, self).__init__()
         self.alive = alive
         self.client_id = client_id
@@ -21,9 +22,8 @@ class StatusChecker(Process):
         sys.exit(0)
 
 
-    def __status_checker(self):
-        while self.alive.value:
-            logging.info(f"--- [SEND STATUS CHECK]")
+    def start(self):
+        while self.alive.value == True:
             self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
             time.sleep(2)
 
