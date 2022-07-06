@@ -32,7 +32,7 @@ services:
       - IMAGE_QUEUE=post_avg_sentiments_queue
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
-      - RECV_WORKERS_STUDENTS=1
+      - RECV_WORKERS_STUDENTS=2
     networks:
       - rabbitmq
 

@@ -143,7 +143,6 @@ class JoinCommentsWithPosts:
     def __add_comments(self, list_comments, msg_hash):
         for c in list_comments:
             key = c["post_id"]
-            print(c)
             # get or create dict with key=post_id
             self.join_dict[key] = self.join_dict.get(key, {})
 

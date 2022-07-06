@@ -44,5 +44,5 @@ class CommentsFilterStudent:
 
     def __filter_student(self, comment):
         student_words = ["university", "college", "student", "teacher", "professor"]
-        body =  " ".join(comment["body"])
+        body = " ".join(comment["body"])
         return any(word.lower() in body for word in student_words)

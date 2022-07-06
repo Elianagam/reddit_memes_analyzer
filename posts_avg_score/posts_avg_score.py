@@ -31,7 +31,7 @@ class PostsAvgScore:
         if os.path.exists('./data_base/avg_state.txt'):
             with open('./data_base/avg_state.txt') as f:
                 sum_score = f.readline().rstrip('\n')
-                self.sum_score = int(sum_score)
+                self.sum_score = float(sum_score)
 
                 for post_id in f:
                     self.posts_ids.append(post_id.rstrip('\n'))

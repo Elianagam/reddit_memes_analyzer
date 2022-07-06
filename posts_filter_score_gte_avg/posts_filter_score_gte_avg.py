@@ -81,7 +81,10 @@ class PostsFilterScoreGteAvg:
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, posts):
+        logging.info(f"parser: {posts}")
+
         list_posts = []
+
         for post in posts:
             if float(post["score"]) >= self.avg_score:
                 list_posts.append({"url": post["url"]})
@@ -92,9 +95,10 @@ class PostsFilterScoreGteAvg:
 
     def __send_arrive_early(self):
         n = self.chunksize
-        lst = self.arrived_early
-        logging.info(self.arrived_early)
-        chunks = [lst[i:i + n] for i in range(0, len(lst), n)]
+        logging.info(f"arrived_early: {len(self.arrived_early)}")
+        chunks = []
+        for i in range(0, len(self.arrived_early), n):
+            chunks = self.arrived_early[i:i+n]
         for chunk in chunks:
             logging.info(f"[chunks] {chunks}")
             self.__parser(chunk)
