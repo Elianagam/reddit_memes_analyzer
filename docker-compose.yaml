@@ -30,6 +30,9 @@ services:
       - STUDENTS_QUEUE=student_url_queue
       - AVG_QUEUE=posts_avg_score_queue
       - IMAGE_QUEUE=post_avg_sentiments_queue
+      - STATUS_CHECK_QUEUE=client_status_check_queue
+      - STATUS_RESPONSE_QUEUE=client_status_response_queue
+      - RECV_WORKERS_STUDENTS=1
     networks:
       - rabbitmq
 

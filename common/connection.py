@@ -1,25 +1,20 @@
 import pika
-import pika.exceptions
 import time
+import logging
+import json
 
 
 class Connection:
-    def __init__(self, queue_name='', exchange_name='', bind=False,
-                 conn=None, exchange_type='fanout', routing_key=''):
-
-        if conn is not None:
+    def __init__(self, queue_name='', exchange_name='', bind=False, 
+        conn=None, exchange_type='fanout', routing_key='', timeout=15):
+        if conn != None:
             self.connection = conn.connection
             self.channel = conn.channel
         else:
-            time.sleep(15)
-            connected = False
-            while not connected:
-                try:
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-                    connected = True
-                except pika.exceptions.AMQPConnectionError:
-                    time.sleep(1)
-            self.channel = self.connection.channel()
+            time.sleep(timeout)
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+            self.channel = self.connection.channel()      
+
 
         self.queue_name = queue_name
         self.exchange_name = exchange_name
@@ -75,5 +70,5 @@ class Connection:
         self.channel.stop_consuming()
         self.connection.close()
 
-    def get_connection(self):
-        return self.connection, self.channel
+    def get_channel(self):
+        return self.channel

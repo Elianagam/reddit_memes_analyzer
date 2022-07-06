@@ -52,6 +52,7 @@ class PostsFilterColumns:
                 posts_to_join.append(post_new)
 
         return posts_to_join, posts_for_avg
+        
 
     def __invalid_post(self, post):
         # Dont send post without url or deleted
