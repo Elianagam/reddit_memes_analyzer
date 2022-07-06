@@ -39,11 +39,19 @@ class Client:
         self.client_id = client_id
         self.data_to_recv = 0
         self.data_recved = 0
+        self.worker_key_status = f"status.client{self.client_id}"
+        self.worker_key_response = f"response.client{self.client_id}"
 
-        self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
+        self.conn_recv_response = Connection(exchange_name=response_queue, bind=True,
+            exchange_type='topic', routing_key=self.worker_key_response, timeout=1)
+
+        self.conn_recv_status = Connection(exchange_name=response_queue, bind=True,
+            exchange_type='topic', routing_key=self.worker_key_status, timeout=1)
+
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
 
-        self.channel = self.conn_recv_response.get_channel()        
+        self.channel_response = self.conn_recv_response.get_channel()        
+        self.channel_status = self.conn_recv_status.get_channel()        
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
@@ -57,9 +65,6 @@ class Client:
         self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
         logging.info("waiting status response...")
         status = self.get_status()
-        
-        while status["client_id"] != self.client_id:
-            status = self.get_status()
 
         logging.info(f"STATUS: {status}")
         
@@ -89,8 +94,8 @@ class Client:
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
         
-        if self.client_id != sink_recv["client_id"]:
-            self.conn_status_send.send(body)
+        #if self.client_id != sink_recv["recv_client_id"]:
+        #    self.conn_status_send.send(body)
         #    logging.info("Another client connected")
         
         logging.info(f"status: {sink_recv}")
@@ -102,12 +107,11 @@ class Client:
                 self.exit_gracefully()
 
         elif sink_recv["status"] == "BUSY":
-            if self.client_id != sink_recv["client_id"]:
-                logging.info("System is busy, try later...")
-                self.exit_gracefully()
-            else:
-                self.conn_status_send.send(body)
-                logging.info("Another client connected")
+            logging.info("System is busy, try later...")
+            self.exit_gracefully()
+        #    else:
+        #self.conn_status_send.send(body)
+        #        logging.info("Another client connected")
 
         elif sink_recv["status"] == "AVAILABLE":
             self.alive.value = True
@@ -116,7 +120,7 @@ class Client:
             logging.info("System hasn't finish yet...")
 
     def get_status(self):
-        for method, properties, body in self.channel.consume(self.response_queue, inactivity_timeout=TIMEOUT):
+        for method, properties, body in self.channel_status.consume(self.response_queue, inactivity_timeout=TIMEOUT):
             if body != None:
                 msg = json.loads(body)
                 if "status" in msg:
@@ -125,7 +129,7 @@ class Client:
                 self.channel.basic_ack(method.delivery_tag)
 
     def get_response(self, callback):
-        for method, properties, body in self.channel.consume(self.response_queue, inactivity_timeout=TIMEOUT):
+        for method, properties, body in self.channel_response.consume(self.response_queue, inactivity_timeout=TIMEOUT):
             if body != None:
-                callback(self.channel,method, properties, body)
+                callback(self.channel, method, properties, body)
                 self.channel.basic_ack(method.delivery_tag)

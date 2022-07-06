@@ -43,13 +43,10 @@ docker-system-image:
 
 docker-compose-up:
 	docker-compose -f docker-compose.yaml up -d --build --remove-orphans
+	docker-compose -f docker-compose.yaml logs -f
 .PHONY: docker-compose-up
 
 docker-compose-down:
 	docker-compose -f docker-compose.yaml stop -t 2
 	docker-compose -f docker-compose.yaml down
 .PHONY: docker-compose-down
-
-docker-compose-logs:
-	docker-compose -f docker-compose.yaml logs -f
-.PHONY: docker-compose-logs

@@ -31,16 +31,16 @@ make docker-system-image
 Para correr el docker compose y poder visualizar los logs se corren en secuencia los siguientes comandos:
 ```
 make docker-compose-up
-make docker-compose-logs
 ```
-y para el cliente
+y para el cliente con diferentes env files
 ```
-make docker-client-run
+docker run --env-file client/.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
+docker run --env-file client/c2.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
+docker run --env-file client/c3.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
 ```
 
 **Stop**
 ```
 make docker-compose-down
 make docker-client-down
-```
 ```
