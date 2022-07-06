@@ -153,6 +153,10 @@ class ClusterNode(object):
             if i > self.node_id:
                 yield i
 
+    @staticmethod
+    def ack_message(tag, channel):
+        channel.basic_ack(delivery_tag=tag)
+
     def send_to(self, ids, message, channel=None):
         channel = channel if channel else self.channel
         for i in ids:
@@ -194,7 +198,9 @@ class ClusterNode(object):
         channel = conn.channel()
         logger.info("%s escuchando mensajes del heath check")
         try:
-            for _, _, msg in channel.consume(queue='health_check', inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
+            for method, _, msg in channel.consume(queue='health_check',
+                                                  auto_ack=False,
+                                                  inactivity_timeout=HEALTHCHECK_READ_TIMEOUT):
                 if msg:
                     msg = json.loads(msg)
                     logger.debug("HealthCheck recibe %r", msg)
@@ -205,6 +211,7 @@ class ClusterNode(object):
                     self.save()
                 # Al final de cada ciclo valido el estado de los nodos monitoreados
                 self.check_node_healths()
+                self.ack_message(tag=method.delivery_tag, channel=channel)
         except SigTermException:
             pass
 
@@ -479,14 +486,16 @@ class ClusterNode(object):
         timeout = SLEEP_SECONDS
 
         # Consume de la queue del nodo, en caso de timeout sale con resultado None, None, None
-        for _, _, msg in self.channel.consume(queue=self.queue, inactivity_timeout=timeout):
+        for method, _, msg in self.channel.consume(queue=self.queue,
+                                              auto_ack=False,
+                                              inactivity_timeout=timeout):
             msg = json.loads(msg) if msg else None
 
             # Se le pasa el mensaje a la función adecuada acorde al estado actual del nodo
             f = self.state_mapping[self.state]
             logger.debug("LLamo a %r con %r", f, msg)
             f(msg)
-
+            self.ack_message(tag=method.delivery_tag, channel=self.channel)
 
 def main():
     node = ClusterNode()
