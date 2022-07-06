@@ -108,6 +108,7 @@ class Receiver:
                 self.count_end = 0
                 self.data_to_send = 0
                 self.actual_client = None
+                #ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
     def __callback_status(self, ch, method, properties, body):
@@ -115,7 +116,12 @@ class Receiver:
         # recv 1 avg_score and 1 bytes_image
         msg = {}
 
-        if self.count_end == 0:
+        if self.count_end == self.total_end:
+            msg = {"status": "FINISH", "client_id": self.actual_client}
+            self.actual_client = None
+            self.count_end = 0
+            self.data_to_send = 0
+        elif self.count_end == 0:
             if self.actual_client == None:
                 self.actual_client = recv['client_id']
                 msg = {"status": "AVAILABLE"}

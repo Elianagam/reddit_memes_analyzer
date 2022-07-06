@@ -58,6 +58,8 @@ class Client:
         logging.info("waiting status response...")
         status = self.get_status()
         
+        while status["client_id"] != self.client_id:
+            status = self.get_status()
         logging.info(f"STATUS: {status}")
         
         if status == "AVAILABLE":
