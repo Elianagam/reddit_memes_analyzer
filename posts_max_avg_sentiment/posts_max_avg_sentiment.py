@@ -51,6 +51,7 @@ class PostsMaxAvgSentiment:
         if "end" in posts:
             if self.max_avg["url"] is not None:
                 self.end_recv[int(posts["end"]) - 1] = True
+                self.__store_state()
 
                 if False not in self.end_recv:
                     self.__end_recv(posts)
@@ -68,6 +69,7 @@ class PostsMaxAvgSentiment:
 
         download = self.__download_image()
         self.conn_send.send(json.dumps(download))
+        self.conn_send.send(json.dumps({"end": True}))
 
     def __get_max_avg_sentiment(self, posts):
         for post in posts:

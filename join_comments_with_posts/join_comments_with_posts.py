@@ -123,7 +123,7 @@ class JoinCommentsWithPosts:
             self.finish[my_key][int(readed["end"]) - 1] = True
             logging.info(
                 f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
-
+            self.__store_finish()
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
                 self.__send_join_data()
