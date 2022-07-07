@@ -1,6 +1,4 @@
-FROM python:3.9.7-alpine
-RUN apk update
-RUN apk add docker
+FROM python:3.9.7-slim
 RUN pip3 install --user pika
 RUN pip3 install --user retry
 RUN pip3 install --user requests

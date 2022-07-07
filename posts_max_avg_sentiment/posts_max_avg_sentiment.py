@@ -90,6 +90,8 @@ class PostsMaxAvgSentiment(MonitoredMixin):
         image_url = self.max_avg["url"]
         filename = "data/max_avg_sentiment.jpg"
 
+        print(f"PERNO IMAGEN {image_url}")
+
         response = requests.get(image_url, stream=True)
         if response.status_code == 200:
             response.raw.decode_content = True

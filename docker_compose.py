@@ -113,6 +113,7 @@ services:
 
 networks:
   rabbitmq:
+    name: rabbitmq
     ipam:
       driver: default
       config:
