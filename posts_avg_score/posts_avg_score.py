@@ -95,14 +95,11 @@ class PostsAvgScore(MonitoredMixin):
                     avg = self.__calculate_avg()
 
                     self.conn_send.send(json.dumps({"posts_score_avg": avg}))
-                    self.conn_send.send(json.dumps(posts))
+                    self.conn_send.send(json.dumps({"end": -1}))
 
                     self.__clear_old_state()
         else:
-            start = time.time()
             self.__sum_score(posts)
-            end = time.time()
-            print(f"PERNO Tarde {end-start} en procesar {len(posts)} posts")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 

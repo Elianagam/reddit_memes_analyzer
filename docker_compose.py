@@ -36,6 +36,8 @@ services:
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
       - RECV_WORKERS_STUDENTS={filter_exchange}
       - CONTAINER_NAME=receiver
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -104,6 +106,7 @@ services:
       - RECV_WORKERS_POSTS={worker_join_posts}
       - SEND_WORKERS={filter_exchange}
       - CONTAINER_NAME=join_comments_with_posts
+      - PYTHONHASHSEED=0
     volumes:
       - ./data_base:/data_base
     networks:
@@ -135,6 +138,7 @@ COMENTS_FILTERS = """
       - QUEUE_SEND=comments_filter_queue
       - CONTAINER_NAME=comments_filter_columns_{id}
       - WORKER_NUM={id}
+      - PYTHONHASHSEED=0
     networks:
       - rabbitmq
 """

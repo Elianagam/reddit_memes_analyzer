@@ -58,7 +58,7 @@ class PostsMaxAvgSentiment(MonitoredMixin):
                 self.__store_state()
 
                 if False not in self.end_recv:
-                    self.__end_recv(posts)
+                    self.__end_recv({"end": -2})
                     self.end_recv = [False] * self.recv_workers
                     self.max_avg = {"url": None, "avg_sentiment": 0}
                     self.__store_state()
@@ -73,7 +73,7 @@ class PostsMaxAvgSentiment(MonitoredMixin):
 
         download = self.__download_image()
         self.conn_send.send(json.dumps(download))
-        self.conn_send.send(json.dumps({"end": True}))
+        self.conn_send.send(json.dumps(end_msg))
 
     def __get_max_avg_sentiment(self, posts):
         for post in posts:

@@ -34,7 +34,7 @@ def main():
         
         recv.start()
     except Exception as e:
-        logging.info(f"Close Connection {e}")
+        print(f"Close Connection {e}")
         sys.exit(0)
 
 

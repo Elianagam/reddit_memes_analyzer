@@ -33,7 +33,11 @@ services:
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
       - RECV_WORKERS_STUDENTS=2
+      - PYTHONHASHSEED=0
       - CONTAINER_NAME=receiver
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -286,6 +290,7 @@ services:
       - RECV_WORKERS_POSTS=2
       - SEND_WORKERS=2
       - CONTAINER_NAME=join_comments_with_posts
+      - PYTHONHASHSEED=0
     volumes:
       - ./data_base:/data_base
     networks:

@@ -39,6 +39,7 @@ class Client:
         self.client_id = client_id
         self.data_to_recv = 0
         self.data_recved = 0
+        self.students_sum = 0
 
         self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
@@ -48,6 +49,7 @@ class Client:
 
     def exit_gracefully(self, *args):
         self.conn_recv_response.close()
+        self.conn_status_send.close()
         if self.checker != None and self.data_sender != None:
             self.checker.join()
             self.data_sender.join()
@@ -80,6 +82,7 @@ class Client:
             self.__callback_status(ch, method, properties, body)
         else: 
             logging.info(f"* * * [STUDENTS] {len(sink_recv)}")
+            self.students_sum += len(sink_recv)
             self.data_recved += 1
 
     def __callback_status(self, ch, method, properties, body):
@@ -87,6 +90,7 @@ class Client:
         
         if sink_recv["status"] == "FINISH":
             logging.info(f"[CLOSE CLIENT]")
+            logging.info(f"* * * [STUDENTS] FINAL {self.students_sum}")
             self.alive.value = False
             self.data_to_recv = sink_recv["data"]
             if self.data_recved == self.data_to_recv:
