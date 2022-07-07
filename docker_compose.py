@@ -84,6 +84,7 @@ services:
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS={worker_join_posts}
       - CONTAINER_NAME=posts_avg_score
+      - PYTHONHASHSEED=0
     networks:
       - rabbitmq
 
