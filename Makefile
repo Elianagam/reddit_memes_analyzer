@@ -36,6 +36,7 @@ docker-system-image:
 	docker build -f ./posts_filter_columns/Dockerfile -t "posts_filter_columns:latest" .
 	docker build -f ./posts_avg_score/Dockerfile -t "posts_avg_score:latest" .
 	docker build -f ./join_comments_with_posts/Dockerfile -t "join_comments_with_posts:latest" .
+	docker build -f ./health_check/Dockerfile -t "health_check:latest" .
 .PHONY: docker-system-image
 
 docker-compose-up:

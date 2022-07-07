@@ -34,7 +34,7 @@ services:
       - IMAGE_QUEUE=post_avg_sentiments_queue
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
-      - RECV_WORKERS_STUDENTS={worker_students}
+      - RECV_WORKERS_STUDENTS={filter_exchange}
       - CONTAINER_NAME=receiver
     networks:
       - rabbitmq
@@ -58,7 +58,7 @@ services:
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
-      - RECV_WORKERS={worker_join_posts}
+      - RECV_WORKERS={filter_exchange}
       - CONTAINER_NAME=posts_max_avg_sentiment
     networks:
       - rabbitmq
@@ -97,9 +97,9 @@ services:
       - QUEUE_SEND_STUDENTS=cmt_pst_join_st_queue
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
       - CHUNKSIZE={chunksize}
-      - RECV_WORKERS_COMMENTS={workers_join_comments}
-      - RECV_WORKERS_POSTS={workers_join_posts}
-      - SEND_WORKERS={worker_students}
+      - RECV_WORKERS_COMMENTS={worker_join_comments}
+      - RECV_WORKERS_POSTS={worker_join_posts}
+      - SEND_WORKERS={filter_exchange}
       - CONTAINER_NAME=join_comments_with_posts
     networks:
       - rabbitmq
@@ -211,9 +211,7 @@ REDUCE_SENTIMETS = """
 
 HEALTH_CHECKER = """
   healthchecker:
-    build:
-      context: .
-      dockerfile: health_check/Dockerfile
+    image: health_check:latest
     deploy:
       replicas: {replicas}
     environment:
@@ -244,10 +242,10 @@ def add_filters(num, init_txt):
 
 
 def main():
-    filter_exchange = int(sys.argv[1])
-    workers_join_comments = int(sys.argv[2])
-    workers_join_posts = int(sys.argv[3])
-    chunksize = int(sys.argv[4])
+    filter_exchange = int(sys.argv[1]) #1
+    workers_join_comments = int(sys.argv[2]) #2
+    workers_join_posts = int(sys.argv[3]) #3
+    chunksize = int(sys.argv[4]) #4
     healthcheck = int(sys.argv[5])
 
 
@@ -266,7 +264,7 @@ def main():
 
     compose = INIT_DOCKER.format(worker_join_comments=workers_join_comments,
                                  worker_join_posts=workers_join_posts,
-                                 worker_students=filter_exchange,
+                                 filter_exchange=filter_exchange,
                                  chunksize=chunksize) \
                   .replace("<COMMENTS_FILTER_COLUMNS>", filters_c) \
                   .replace("<COMMENTS_FILTER_STUDENTS>", filters_s) \
