@@ -3,8 +3,13 @@ import signal
 import csv
 import json
 import sys
-from multiprocessing import Process
+import time
+from multiprocessing import Process, Manager
 from common.connection import Connection
+from data_sender import DataSender, StatusChecker
+
+
+TIMEOUT = 3
 
 
 class Client:
@@ -16,81 +21,97 @@ class Client:
         comments_queue,
         chunksize,
         response_queue,
+        status_check_queue,
+        status_response_queue,
+        client_id
     ):
-        logging.info("INIT")
-        self.file_comments = file_comments
+        manager = Manager()
+        self.alive = manager.Value('alive', True)
+
         self.file_posts = file_posts
+        self.file_comments = file_comments
+        self.posts_queue = posts_queue
+        self.comments_queue = comments_queue
         self.chunksize = chunksize
+        self.response_queue = response_queue
+        self.checker = None
+        self.data_sender = None
+        self.client_id = client_id
+        self.data_to_recv = 0
+        self.data_recved = 0
 
-        self.conn_posts = Connection(queue_name=posts_queue)
-        self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
+        self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
+        self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
 
-        self.conn_recv_response = Connection(queue_name=response_queue)
-
-        self.comments_sender = Process(target=self.__send_comments())
-        self.posts_sender = Process(target=self.__send_posts())
-
-        self.count_end = 0
+        self.channel = self.conn_recv_response.get_channel()        
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
-        self.conn_posts.close()
-        self.conn_comments.close()
+        self.conn_recv_response.close()
+        if self.checker != None and self.data_sender != None:
+            self.checker.join()
+            self.data_sender.join()
         sys.exit(0)
 
     def start(self):
-        self.conn_recv_response.recv(self.__callback)
-
-        self.posts_sender.start()
-        self.comments_sender.start()
-
-
-        self.comments_sender.join()
-        self.posts_sender.join()
-
-
-    def __send_posts(self):
-        logging.info("SEND POST DATA")
-        fields = ["type", "id", "subreddit.id", "subreddit.name", 
-                  "subreddit.nsfw", "created_utc", "permalink", 
-                  "domain", "url", "selftext", "title", "score"]
-
-        self.__read(self.file_posts, self.conn_posts, fields)
-
-    def __read(self, file_name, conn, fields):
-        with open(file_name, mode='r') as csv_file:
-            reader = csv.DictReader(csv_file)
-            chunk = []
-            for i, line in enumerate(reader):
-                if (i % self.chunksize == 0 and i > 0):
-                    logging.info(f"CHUNK {len(chunk)}")
-                    conn.send(body=json.dumps(chunk))
-                    chunk = []
-                chunk.append(line)
+        self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
+        logging.info("waiting status response...")
+        status = self.get_status()
+        
+        logging.info(f"STATUS: {status}")
+        
+        if status == "AVAILABLE":
+            self.data_sender = DataSender(self.file_posts, self.file_comments, 
+                self.posts_queue, self.comments_queue, self.chunksize).start()
+            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id).start()
+            self.get_response(self.__callback)
             
-            if len(chunk) != 0:
-                conn.send(body=json.dumps(chunk))
-
-            logging.info(f"CHUNK {file_name} - {len(chunk)}")
-            conn.send(body=json.dumps({"end": True}))
-
-    def __send_comments(self):
-        logging.info("SEND COMMENTS DATA")
-        fields = ["type","id", "subreddit.id", "subreddit.name",
-                  "subreddit.nsfw", "created_utc", "permalink", 
-                  "body", "sentiment", "score"]
-
-        self.__read(self.file_comments, self.conn_comments, fields)
-
+            
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
 
         if "posts_score_avg" in sink_recv:
-            logging.info(f"* * * [CLIENT AVG_SCORE RECV] {sink_recv}")
+            logging.info(f"* * * [AVG_SCORE] {sink_recv}")
+            self.data_recved += 1
         elif "image_bytes" in sink_recv:
-            logging.info(f"* * * [CLIENT BYTES RECV] {sink_recv.keys()}")
-        elif "end" in sink_recv:
-            self.count_end += 1
-            logging.info(f"-- Count end {self.count_end}")
+            logging.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
+            self.data_recved += 1
+        elif "status" in sink_recv:
+            self.__callback_status(ch, method, properties, body)
         else: 
-            logging.info(f"* * * [CLIENT STUDENT RECV] {len(sink_recv)}")
+            logging.info(f"* * * [STUDENTS] {len(sink_recv)}")
+            self.data_recved += 1
+
+    def __callback_status(self, ch, method, properties, body):
+        sink_recv = json.loads(body)
+        
+        if sink_recv["status"] == "FINISH":
+            logging.info(f"[CLOSE CLIENT]")
+            self.alive.value = False
+            self.data_to_recv = sink_recv["data"]
+            if self.data_recved == self.data_to_recv:
+                self.exit_gracefully()
+
+        elif sink_recv["status"] == "BUSY":
+            logging.info("System is busy, try later...")
+            self.exit_gracefully()
+
+        elif sink_recv["status"] == "AVAILABLE":
+            self.alive.value = True
+
+        elif sink_recv["status"] == "PENDING":
+            logging.info("System hasn't finish yet...")
+
+    def get_status(self):
+        for method, properties, body in self.channel.consume(self.response_queue, inactivity_timeout=TIMEOUT):
+            if body != None:
+                msg = json.loads(body)
+                if "status" in msg:
+                    return msg["status"]
+                self.channel.basic_ack(method.delivery_tag)
+
+    def get_response(self, callback):
+        for method, properties, body in self.channel.consume(self.response_queue, inactivity_timeout=TIMEOUT):
+            if body != None:
+                callback(self.channel,method, properties, body)
+                self.channel.basic_ack(method.delivery_tag)
