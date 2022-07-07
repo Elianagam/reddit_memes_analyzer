@@ -29,7 +29,7 @@ class Receiver(MonitoredMixin):
         # SYSTEM RECV
         self.students_recved = []
         self.conn_recv_students = Connection(queue_name=students_queue, conn=self.client_conn_recv)
-        self.conn_recv_avg = Connection(exchange_name=avg_queue, bind=True, conn=self.client_conn_recv)
+        self.conn_recv_avg = Connection(exchange_name=avg_queue, routing_key='receiver_avg', bind=True, conn=self.client_conn_recv)
         self.conn_recv_image = Connection(queue_name=image_queue, conn=self.client_conn_recv)
 
         self.conn_status_recv = Connection(queue_name=status_check_queue, conn=self.client_conn_recv)

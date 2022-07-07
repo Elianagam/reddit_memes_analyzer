@@ -101,7 +101,9 @@ class JoinCommentsWithPosts(MonitoredMixin):
 
         if not self.__finish(my_key="comments", other_key="posts", readed=comments,
                              my_workers=self.recv_workers_comments,
-                             other_workers=self.recv_workers_posts):
+                             other_workers=self.recv_workers_posts,
+                             channel=ch,
+                             method=method):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_comments(comments, msg_hash)
@@ -114,7 +116,9 @@ class JoinCommentsWithPosts(MonitoredMixin):
 
         if not self.__finish(my_key="posts", other_key="comments", readed=posts,
                              my_workers=self.recv_workers_posts,
-                             other_workers=self.recv_workers_comments):
+                             other_workers=self.recv_workers_comments,
+                             channel=ch,
+                             method=method):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_post(posts, msg_hash)
@@ -122,17 +126,20 @@ class JoinCommentsWithPosts(MonitoredMixin):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def __finish(self, my_key, other_key, readed, my_workers, other_workers):
+    def __finish(self, my_key, other_key, readed, my_workers, other_workers, channel, method):
         if "end" in readed:
             if len(self.msg_hash_list) == 0:
                 return True
 
             self.finish[my_key][int(readed["end"]) - 1] = True
+            print(f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
             logging.info(
                 f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
             self.__store_finish()
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
+                print("FINISH JOIN ALL")
+                #channel.basic_ack(delivery_tag=method.delivery_tag)
                 self.__send_join_data()
                 # Send end msg to n workers
                 for i in range(self.send_workers):

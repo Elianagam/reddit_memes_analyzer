@@ -11,7 +11,7 @@ from atomicwrites import atomic_write
 class PostsFilterScoreGteAvg(MonitoredMixin):
     def __init__(self, queue_recv_avg, queue_recv_students, queue_send, worker_num, recv_workers, chunksize=10):
         self.conn_recv_students = Connection(exchange_name=queue_recv_students, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
-        self.conn_recv_avg = Connection(exchange_name=queue_recv_avg, bind=True, conn=self.conn_recv_students)
+        self.conn_recv_avg = Connection(exchange_name=queue_recv_avg, routing_key=f'posts_filter_gte_{worker_num}', bind=True, conn=self.conn_recv_students)
         self.conn_send = Connection(queue_name=queue_send)
         self.chunksize = chunksize
         self.worker_num = worker_num
@@ -123,7 +123,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
         logging.info(f"arrived_early: {len(self.arrived_early)}")
         chunks = []
         for i in range(0, len(self.arrived_early), n):
-            chunks = self.arrived_early[i:i+n]
+            chunks.append(self.arrived_early[i:i+n])
         for chunk in chunks:
             logging.info(f"[chunks] {chunks}")
             self.__parser(chunk)

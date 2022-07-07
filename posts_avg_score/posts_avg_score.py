@@ -1,6 +1,7 @@
 import os
 import signal
 import logging
+import time
 
 import json
 
@@ -98,7 +99,10 @@ class PostsAvgScore(MonitoredMixin):
 
                     self.__clear_old_state()
         else:
+            start = time.time()
             self.__sum_score(posts)
+            end = time.time()
+            print(f"PERNO Tarde {end-start} en procesar {len(posts)} posts")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 

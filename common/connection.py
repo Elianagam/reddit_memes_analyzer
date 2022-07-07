@@ -15,7 +15,9 @@ class Connection:
             connected = False
             while not connected:
                 try:
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+                    self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq',
+                                                                                        heartbeat=60*15,
+                                                                                        blocked_connection_timeout=60*15))
                     connected=True
 
                 except pika.exceptions.AMQPConnectionError:
@@ -40,7 +42,7 @@ class Connection:
             )
         if bind:
             # Si es exgange que recibe tiene que crear una anon queue 
-            anon_queue = self.channel.queue_declare(queue='', exclusive=True)
+            anon_queue = self.channel.queue_declare(queue=f"{self.exchange_name}_{routing_key}", exclusive=False)
             self.queue_name = anon_queue.method.queue
             if routing_key:
                 self.channel.queue_bind(
