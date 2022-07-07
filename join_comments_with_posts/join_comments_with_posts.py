@@ -77,6 +77,11 @@ class JoinCommentsWithPosts(MonitoredMixin):
         with atomic_write("./data_base/join_clean", overwrite=True) as f:
             f.write("True")
 
+        for i in range(self.send_workers):
+            key = i + 1
+            worker_key = f"{key}"
+            self.__send_data(json.dumps({"end": True}), worker_key)
+
         directory = './data_base/join_msgs'
         for f in os.listdir(directory):
             os.remove(os.path.join(directory, f))
@@ -107,7 +112,7 @@ class JoinCommentsWithPosts(MonitoredMixin):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_comments(comments, msg_hash)
-                self.__store_msg(comments, "c")
+                self.__store_msg(json.loads(body), "c")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -122,7 +127,7 @@ class JoinCommentsWithPosts(MonitoredMixin):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_post(posts, msg_hash)
-                self.__store_msg(posts, "p")
+                self.__store_msg(json.loads(body), "p")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -139,13 +144,8 @@ class JoinCommentsWithPosts(MonitoredMixin):
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
                 print("FINISH JOIN ALL")
-                #channel.basic_ack(delivery_tag=method.delivery_tag)
                 self.__send_join_data()
                 # Send end msg to n workers
-                for i in range(self.send_workers):
-                    key = i + 1
-                    worker_key = f"{key}"
-                    self.__send_data(json.dumps(readed), worker_key)
                 self.__clear_old_state()
             return True
         return False
@@ -182,7 +182,9 @@ class JoinCommentsWithPosts(MonitoredMixin):
 
     def __send_join_data(self):
         chunk = []
-        for post_id, post in self.join_dict.items():
+        dic_list = sorted(self.join_dict.items(), key=lambda tup: tup[0])
+
+        for post_id, post in dic_list:
             if not "url" in self.join_dict[post_id]:
                 continue
             if len(chunk) == self.chunksize:
