@@ -384,6 +384,7 @@ class ClusterNode(object):
                     self.state = NodeState.ELECTION_WAITING_VICTORY
                 if self.exceeded_election_limit():
                     self.proclamate_leader()
+                    self.start_leader_duties()
             if msgtype == 'victory':
                 logger.info("Espero mensaje de OKs y recibi uno de victoria %r", msg)
                 self.process_victory(msg)
@@ -392,6 +393,7 @@ class ClusterNode(object):
             # de espera para los mensajes de los nodos 'superiores'
             if self.exceeded_election_limit():
                 self.proclamate_leader()
+                self.start_leader_duties()
 
     def s_election_victory(self, msg):
         """
@@ -408,6 +410,7 @@ class ClusterNode(object):
             # de espera para los mensajes de los nodos 'superiores'
             if self.exceeded_election_limit():
                 self.proclamate_leader()
+                self.start_leader_duties()
 
     def s_victory_wait(self, msg):
         """
