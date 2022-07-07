@@ -1,0 +1,36 @@
+version: '3'
+services:
+  rabbit:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - 15672:15672
+
+  healthchecker:
+    build:
+      context: ../../
+      dockerfile: health_check/Dockerfile
+    deploy:
+      replicas: 2
+    environment:
+      - REPLICAS=2
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      - rabbit
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./persistence/:/tmp/persistence/
+
+  testnode:
+    container_name: testnode
+    build:
+      context: ../../
+      dockerfile: PoCs/bully/src/Dockerfile
+    entrypoint: ["python3", "dummies.py"]
+    depends_on:
+      - rabbit
+    environment:
+      - PYTONBUFFERED=1
+      - CONTAINER_NAME=testnode
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

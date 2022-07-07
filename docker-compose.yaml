@@ -17,10 +17,10 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
-      - COMMETS_QUEUE=comments_queue 
+      - COMMETS_QUEUE=comments_queue
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS=2
       - SEND_WORKERS_POSTS=2
@@ -30,10 +30,13 @@ services:
       - STUDENTS_QUEUE=student_url_queue
       - AVG_QUEUE=posts_avg_score_queue
       - IMAGE_QUEUE=post_avg_sentiments_queue
+      - STATUS_CHECK_QUEUE=client_status_check_queue
+      - STATUS_RESPONSE_QUEUE=client_status_response_queue
+      - RECV_WORKERS_STUDENTS=2
     networks:
       - rabbitmq
 
-  
+
   comments_filter_columns_1:
     container_name: comments_filter_columns_1
     image: comments_filter_columns:latest
@@ -41,11 +44,12 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -56,15 +60,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
-  
   comments_filter_student_1:
     container_name: comments_filter_student_1
     image: comments_filter_student:latest
@@ -72,12 +76,13 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -88,16 +93,16 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
-  
   posts_filter_score_gte_avg_1:
     container_name: posts_filter_score_gte_avg_1
     image: posts_filter_score_gte_avg:latest
@@ -105,13 +110,17 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - WORKER_NUM=1
       - CHUNKSIZE=400
+      - RECV_WORKERS=2
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -122,17 +131,20 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - WORKER_NUM=2
       - CHUNKSIZE=400
+      - RECV_WORKERS=2
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
-  
   posts_reduce_avg_sentiment_1:
     container_name: posts_reduce_avg_sentiment_1
     image: posts_reduce_avg_sentiment:latest
@@ -140,11 +152,12 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -155,14 +168,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - WORKER_NUM=2
     networks:
       - rabbitmq
-
 
   posts_max_avg_sentiment:
     container_name: posts_max_avg_sentiment
@@ -171,10 +184,11 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
+      - ./data_base:/data_base
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
@@ -182,7 +196,6 @@ services:
     networks:
       - rabbitmq
 
-  
   posts_filter_columns_1:
     container_name: posts_filter_columns_1
     image: posts_filter_columns:latest
@@ -190,12 +203,13 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -206,15 +220,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
+      - WORKER_NUM=2
     networks:
       - rabbitmq
-
 
   posts_avg_score:
     container_name: posts_avg_score
@@ -223,12 +237,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS=2
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -239,8 +255,10 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
     environment:
       - QUEUE_RECV_COMMENTS=comments_filter_queue
       - QUEUE_RECV_POSTS=posts_for_join_queue
@@ -250,6 +268,7 @@ services:
       - RECV_WORKERS_COMMENTS=2
       - RECV_WORKERS_POSTS=2
       - SEND_WORKERS=2
+      - PYTHONHASHSEED=0
     networks:
       - rabbitmq
 

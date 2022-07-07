@@ -3,29 +3,35 @@ import signal
 
 import json
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
 
-class PostsAvgSentiment:
-    def __init__(self, queue_recv, queue_send):
-        self.conn_recv = Connection(queue_name=queue_recv)
+
+class PostsAvgSentiment(MonitoredMixin):
+    def __init__(self, queue_recv, queue_send, worker_num):
+        self.worker_num = worker_num
+        self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(queue_name=queue_send)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.conn_recv.close()
         self.conn_send.close()
+        self.mon_exit()
 
     def __callback(self, ch, method, properties, body):
         posts = json.loads(body)
 
         if "end" in posts:
-            self.conn_send.send(json.dumps(posts))
-            return
+            self.conn_send.send(json.dumps({"end": self.worker_num}))
+        else:
+            result = self.__parser(posts)
+            self.conn_send.send(json.dumps(result))
 
-        result = self.__parser(posts)
-        self.conn_send.send(json.dumps(result))
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def start(self):
-        self.conn_recv.recv(self.__callback)
+        self.mon_start()
+        self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __parser(self, posts):
         list_posts = []
@@ -39,4 +45,3 @@ class PostsAvgSentiment:
             }
             list_posts.append(post_new)
         return list_posts
-

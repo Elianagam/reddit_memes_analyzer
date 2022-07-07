@@ -3,7 +3,8 @@ RUN apk update
 RUN apk add docker
 RUN pip3 install --user pika
 RUN pip3 install --user retry
+COPY health_check /src
+COPY common /src/common
 
-COPY comments_filter_student /
-COPY common /common
-CMD ["python", "./main.py"]
+WORKDIR /src
+CMD python3 -u main.py
