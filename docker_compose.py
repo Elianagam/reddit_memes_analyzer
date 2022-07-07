@@ -97,6 +97,7 @@ services:
       - RECV_WORKERS_COMMENTS={}
       - RECV_WORKERS_POSTS={}
       - SEND_WORKERS={}
+      - PYTHONHASHSEED=0
     networks:
       - rabbitmq
 
@@ -121,6 +122,7 @@ COMENTS_FILTERS = """
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
+      - WORKER_NUM={}
     networks:
       - rabbitmq
 """
@@ -139,6 +141,7 @@ FILTER_STUDENTS = """
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS={}
+      - WORKER_NUM={}
     networks:
       - rabbitmq
 """
@@ -158,6 +161,7 @@ FILTER_SCORE_STUDENTS = """
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE={}
+      - RECV_WORKERS={}
     networks:
       - rabbitmq
 """
@@ -176,6 +180,7 @@ POSTS_FILTER = """
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
+      - WORKER_NUM={}
     networks:
       - rabbitmq
 """
@@ -193,6 +198,7 @@ REDUCE_SENTIMETS = """
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - WORKER_NUM={}
     networks:
       - rabbitmq
 """
@@ -200,7 +206,7 @@ REDUCE_SENTIMETS = """
 def add_filters(num, init_txt):
   filter_txt = ""
   for i in range(1,num+1):      
-      filter_txt += init_txt.format(i, i)
+      filter_txt += init_txt.format(i, i, i)
   return filter_txt
 
 
@@ -218,9 +224,9 @@ def main():
     filters_ss = ""
     reduce_se = ""
     for x in range(1,filter_exchange+1):
-        filters_s += FILTER_STUDENTS.format(x, x, filter_exchange)
-        filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize)
-        reduce_se += REDUCE_SENTIMETS.format(x,x)
+        filters_s += FILTER_STUDENTS.format(x, x, filter_exchange, x)
+        filters_ss += FILTER_SCORE_STUDENTS.format(x, x, chunksize, filter_exchange)
+        reduce_se += REDUCE_SENTIMETS.format(x, x, x)
 
     compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts, filter_exchange,
       filter_exchange, workers_join_posts, chunksize, workers_join_comments, 
