@@ -102,8 +102,6 @@ class PostsFilterScoreGteAvg:
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, posts):
-        logging.info(f"parser: {posts}")
-
         list_posts = []
 
         for post in posts:
@@ -119,9 +117,8 @@ class PostsFilterScoreGteAvg:
         logging.info(f"arrived_early: {len(self.arrived_early)}")
         chunks = []
         for i in range(0, len(self.arrived_early), n):
-            chunks = self.arrived_early[i:i+n]
+            chunks.append(self.arrived_early[i:i+n])
         for chunk in chunks:
-            logging.info(f"[chunks] {chunks}")
             self.__parser(chunk)
 
         self.arrived_early = []

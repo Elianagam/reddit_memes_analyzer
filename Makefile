@@ -11,7 +11,6 @@ docker-client-image:
 
 docker-client-run:
 		docker run --env-file client/.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
-
 .PHONY: docker-client-run
 
 docker-client-run-2:
@@ -21,11 +20,6 @@ docker-client-run-2:
 docker-client-run-3:
 	docker run --env-file client/c2.env  --network=reddit_memes_analyzer_rabbitmq "client:latest"
 .PHONY: docker-client-run-3
-
-docker-client-down:
-	docker-compose -f ./client/docker-compose-client.yaml stop -t 2
-	docker-compose -f ./client/docker-compose-client.yaml down
-.PHONY: docker-client-down
 
 docker-system-image:
 	docker build -f ./receiver/Dockerfile -t "receiver:latest" .
