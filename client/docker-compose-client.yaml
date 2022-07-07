@@ -19,7 +19,7 @@ services:
       - rabbitmq
 
 networks:
-  rabbitmq: 
-    external: 
-      name: reddit_memes_analyzer_rabbitmq
+  rabbitmq:
+    external:
+      name: rabbitmq
 
