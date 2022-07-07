@@ -215,13 +215,14 @@ HEALTH_CHECKER = """
       replicas: {replicas}
     environment:
       - REPLICAS={replicas}
-      - ELECTION_TIMEOUT=2
+      - ELECTION_TIMEOUT=4
       - HEARTBEAT_SLEEP=1
-      - HEARTBEAT_TIMEOUT=3
+      - HEARTBEAT_TIMEOUT=4
       - SLEEP_SECONDS=1
       - HEALTHCHECK_READ_TIMEOUT=2
       - HEALTHCHECK_NODE_TIMEOUT=6
       - HEALTHBEAT_DELAY=2
+      - VICTORY_TIMEOUT=2
     depends_on:
       - rabbitmq
     volumes:
