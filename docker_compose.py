@@ -24,8 +24,8 @@ services:
     environment:
       - COMMETS_QUEUE=comments_queue
       - POSTS_QUEUE=posts_queue
-      - SEND_WORKERS_COMMENTS={}
-      - SEND_WORKERS_POSTS={}
+      - SEND_WORKERS_COMMENTS={worker_join_comments}
+      - SEND_WORKERS_POSTS={worker_join_posts}
       - RECV_POSTS_QUEUE=client_posts_queue
       - RECV_COMMENTS_QUEUE=client_comments_queue
       - SEND_RESPONSE_QUEUE=client_response_queue
@@ -34,7 +34,7 @@ services:
       - IMAGE_QUEUE=post_avg_sentiments_queue
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
-      - RECV_WORKERS_STUDENTS={}
+      - RECV_WORKERS_STUDENTS={worker_students}
       - CONTAINER_NAME=receiver
     networks:
       - rabbitmq
@@ -58,7 +58,7 @@ services:
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
-      - RECV_WORKERS={}
+      - RECV_WORKERS={worker_join_posts}
       - CONTAINER_NAME=posts_max_avg_sentiment
     networks:
       - rabbitmq
@@ -77,7 +77,7 @@ services:
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
-      - RECV_WORKERS={}
+      - RECV_WORKERS={worker_join_posts}
       - CONTAINER_NAME=posts_avg_score
     networks:
       - rabbitmq
@@ -96,10 +96,10 @@ services:
       - QUEUE_RECV_POSTS=posts_for_join_queue
       - QUEUE_SEND_STUDENTS=cmt_pst_join_st_queue
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
-      - CHUNKSIZE={}
-      - RECV_WORKERS_COMMENTS={}
-      - RECV_WORKERS_POSTS={}
-      - SEND_WORKERS={}
+      - CHUNKSIZE={chunksize}
+      - RECV_WORKERS_COMMENTS={workers_join_comments}
+      - RECV_WORKERS_POSTS={workers_join_posts}
+      - SEND_WORKERS={worker_students}
       - CONTAINER_NAME=join_comments_with_posts
     networks:
       - rabbitmq
@@ -248,7 +248,7 @@ def main():
     workers_join_comments = int(sys.argv[2])
     workers_join_posts = int(sys.argv[3])
     chunksize = int(sys.argv[4])
-    healthccheck = int(sys.argv[5])
+    healthcheck = int(sys.argv[5])
 
 
     filters_c = add_filters(workers_join_comments, COMENTS_FILTERS)
@@ -257,16 +257,17 @@ def main():
     filters_s = ""
     filters_ss = ""
     reduce_se = ""
-    health_check_s = HEALTH_CHECKER.format(replicas=healthccheck)
+    health_check_s = HEALTH_CHECKER.format(replicas=healthcheck)
 
     for x in range(1,filter_exchange+1):
         filters_s += FILTER_STUDENTS.format(id=x, exchange=filter_exchange)
         filters_ss += FILTER_SCORE_STUDENTS.format(id=x, chunksize=chunksize)
         reduce_se += REDUCE_SENTIMETS.format(id=x)
 
-    compose = INIT_DOCKER.format(workers_join_comments, workers_join_posts,
-      filter_exchange, workers_join_posts, chunksize, workers_join_comments,
-      workers_join_posts, filter_exchange) \
+    compose = INIT_DOCKER.format(worker_join_comments=workers_join_comments,
+                                 worker_join_posts=workers_join_posts,
+                                 worker_students=filter_exchange,
+                                 chunksize=chunksize) \
                   .replace("<COMMENTS_FILTER_COLUMNS>", filters_c) \
                   .replace("<COMMENTS_FILTER_STUDENTS>", filters_s) \
                   .replace("<POST_FILTER_SCORE_GTE_AVG>", filters_ss) \
@@ -276,6 +277,7 @@ def main():
 
     with open("docker-compose.yaml", "w") as compose_file:
         compose_file.write(compose)
+
 
 if __name__ == "__main__":
     main()

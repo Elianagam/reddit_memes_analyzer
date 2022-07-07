@@ -10,7 +10,7 @@ python3 docker_compose.py <num_reducers> <worker_filter_comments> <worker_filter
 
 Ejemplo
 ```
-python3 docker_compose.py 3 2 2 500
+python3 docker_compose.py 3 2 2 500 3
 ```
 
 ## Run docker-compose
