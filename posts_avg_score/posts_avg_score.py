@@ -22,6 +22,7 @@ class PostsAvgScore(MonitoredMixin):
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.__load_state()
+        super().__init__()
 
     def __load_state(self):
         if os.path.exists("./data_base/avg_score_join_clean.txt"):

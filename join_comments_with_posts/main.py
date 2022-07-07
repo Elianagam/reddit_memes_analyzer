@@ -1,8 +1,8 @@
 import logging
-
+import traceback
 from join_comments_with_posts import JoinCommentsWithPosts
 from common.utils import initialize_log, initialize_config
-
+from multiprocessing import Queue
 
 def main():
     try:
@@ -25,7 +25,12 @@ def main():
             )
         recver.start()
     except Exception as e:
+        print("PERNO ERROR, ", e)
+        print("PERNO ERROR ", traceback.format_exc())
+        #queue = Queue()
+        #queue.get()
         logging.info(f"Close Connection")
+
 
 if __name__ == "__main__":
     main()

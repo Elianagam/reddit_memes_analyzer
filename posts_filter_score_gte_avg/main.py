@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from posts_filter_score_gte_avg import PostsFilterScoreGteAvg
 from common.utils import initialize_log, initialize_config
@@ -22,6 +23,7 @@ def main():
         )
         recver.start()
     except Exception as e:
+        print("PERNO ERROR ", traceback.format_exc())
         logging.info(f"Close Connection {e}")
 
 

@@ -8,11 +8,13 @@ from common.health_check.monitored import MonitoredMixin
 
 class CommentsFilterStudent(MonitoredMixin):
     def __init__(self, queue_recv, queue_send, recv_workers, worker_num):
+        print("PERNO dentro del init")
         self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(exchange_name=queue_send, exchange_type='topic')
         self.worker_num = worker_num
         self.recv_workers = recv_workers
         signal.signal(signal.SIGTERM, self.exit_gracefully)
+        super().__init__()
 
     def exit_gracefully(self, *args):
         self.mon_exit()

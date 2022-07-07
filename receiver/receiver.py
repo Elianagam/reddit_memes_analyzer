@@ -39,6 +39,7 @@ class Receiver(MonitoredMixin):
         self.conn_posts = Connection(exchange_name=posts_queue, exchange_type='topic')
 
         signal.signal(signal.SIGTERM, self.exit_gracefully)
+        super().__init__()
 
     def exit_gracefully(self, *args):
         self.client_conn_recv.close()

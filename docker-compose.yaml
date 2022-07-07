@@ -23,7 +23,7 @@ services:
       - COMMETS_QUEUE=comments_queue
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS=2
-      - SEND_WORKERS_POSTS=3
+      - SEND_WORKERS_POSTS=2
       - RECV_POSTS_QUEUE=client_posts_queue
       - RECV_COMMENTS_QUEUE=client_comments_queue
       - SEND_RESPONSE_QUEUE=client_response_queue
@@ -32,12 +32,12 @@ services:
       - IMAGE_QUEUE=post_avg_sentiments_queue
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
-      - RECV_WORKERS_STUDENTS=1
+      - RECV_WORKERS_STUDENTS=2
       - CONTAINER_NAME=receiver
     networks:
       - rabbitmq
 
-
+  
   comments_filter_columns_1:
     container_name: comments_filter_columns_1
     image: comments_filter_columns:latest
@@ -51,6 +51,7 @@ services:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
       - CONTAINER_NAME=comments_filter_columns_1
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -67,10 +68,11 @@ services:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
       - CONTAINER_NAME=comments_filter_columns_2
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
-
+  
   comments_filter_student_1:
     container_name: comments_filter_student_1
     image: comments_filter_student:latest
@@ -83,12 +85,31 @@ services:
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
-      - RECV_WORKERS=1
+      - RECV_WORKERS=2
       - CONTAINER_NAME=comments_filter_student_1
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
+  comments_filter_student_2:
+    container_name: comments_filter_student_2
+    image: comments_filter_student:latest
+    entrypoint: python3 /main.py
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+    links:
+      - rabbitmq
+    environment:
+      - QUEUE_RECV=cmt_pst_join_st_queue
+      - QUEUE_SEND=posts_student_queue
+      - RECV_WORKERS=2
+      - CONTAINER_NAME=comments_filter_student_2
+      - WORKER_NUM=2
+    networks:
+      - rabbitmq
 
+  
   posts_filter_score_gte_avg_1:
     container_name: posts_filter_score_gte_avg_1
     image: posts_filter_score_gte_avg:latest
@@ -104,10 +125,36 @@ services:
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE=500
       - CONTAINER_NAME=posts_filter_score_gte_avg_1
+      - WORKER_NUM=1
+      - RECV_WORKERS=2
     networks:
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
 
+  posts_filter_score_gte_avg_2:
+    container_name: posts_filter_score_gte_avg_2
+    image: posts_filter_score_gte_avg:latest
+    entrypoint: python3 /main.py
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+    links:
+      - rabbitmq
+    environment:
+      - QUEUE_RECV_AVG=posts_avg_score_queue
+      - QUEUE_RECV_STUDENTS=posts_student_queue
+      - QUEUE_SEND=student_url_queue
+      - CHUNKSIZE=500
+      - CONTAINER_NAME=posts_filter_score_gte_avg_2
+      - WORKER_NUM=2
+      - RECV_WORKERS=2
+    networks:
+      - rabbitmq
+    volumes:
+      - ./data_base:/data_base
 
+  
   posts_reduce_avg_sentiment_1:
     container_name: posts_reduce_avg_sentiment_1
     image: posts_reduce_avg_sentiment:latest
@@ -121,6 +168,24 @@ services:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
       - CONTAINER_NAME=posts_reduce_avg_sentiment_1
+      - WORKER_NUM=1
+    networks:
+      - rabbitmq
+
+  posts_reduce_avg_sentiment_2:
+    container_name: posts_reduce_avg_sentiment_2
+    image: posts_reduce_avg_sentiment:latest
+    entrypoint: python3 /main.py
+    restart: on-failure
+    depends_on:
+      - rabbitmq
+    links:
+      - rabbitmq
+    environment:
+      - QUEUE_RECV=cmt_pst_join_se_queue
+      - QUEUE_SEND=post_sentiments_queue
+      - CONTAINER_NAME=posts_reduce_avg_sentiment_2
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
@@ -136,15 +201,16 @@ services:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
+      - ./data_base:/data_base
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
-      - RECV_WORKERS=1
+      - RECV_WORKERS=2
       - CONTAINER_NAME=posts_max_avg_sentiment
     networks:
       - rabbitmq
 
-
+  
   posts_filter_columns_1:
     container_name: posts_filter_columns_1
     image: posts_filter_columns:latest
@@ -159,6 +225,7 @@ services:
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_1
+      - WORKER_NUM=1
     networks:
       - rabbitmq
 
@@ -176,23 +243,7 @@ services:
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_2
-    networks:
-      - rabbitmq
-
-  posts_filter_columns_3:
-    container_name: posts_filter_columns_3
-    image: posts_filter_columns:latest
-    entrypoint: python3 /main.py
-    restart: on-failure
-    depends_on:
-      - rabbitmq
-    links:
-      - rabbitmq
-    environment:
-      - QUEUE_RECV=posts_queue
-      - QUEUE_SEND_JOIN=posts_for_join_queue
-      - QUEUE_SEND_AVG=posts_for_avg_queue
-      - CONTAINER_NAME=posts_filter_columns_3
+      - WORKER_NUM=2
     networks:
       - rabbitmq
 
@@ -202,6 +253,8 @@ services:
     image: posts_avg_score:latest
     entrypoint: python3 /main.py
     restart: on-failure
+    volumes:
+      - ./data_base:/data_base
     depends_on:
       - rabbitmq
     links:
@@ -209,7 +262,7 @@ services:
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
-      - RECV_WORKERS=3
+      - RECV_WORKERS=2
       - CONTAINER_NAME=posts_avg_score
     networks:
       - rabbitmq
@@ -230,19 +283,21 @@ services:
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
       - CHUNKSIZE=500
       - RECV_WORKERS_COMMENTS=2
-      - RECV_WORKERS_POSTS=3
-      - SEND_WORKERS=1
+      - RECV_WORKERS_POSTS=2
+      - SEND_WORKERS=2
       - CONTAINER_NAME=join_comments_with_posts
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
-
+  
   healthchecker:
     image: health_check:latest
     deploy:
-      replicas: 4
+      replicas: 2
     environment:
-      - REPLICAS=4
+      - REPLICAS=2
       - ELECTION_TIMEOUT=4
       - HEARTBEAT_SLEEP=1
       - HEARTBEAT_TIMEOUT=4

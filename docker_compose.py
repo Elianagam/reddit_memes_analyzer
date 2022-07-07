@@ -55,6 +55,7 @@ services:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
+      - ./data_base:/data_base
     environment:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
@@ -70,6 +71,8 @@ services:
     image: posts_avg_score:latest
     entrypoint: python3 /main.py
     restart: on-failure
+    volumes:
+      - ./data_base:/data_base
     depends_on:
       - rabbitmq
     links:
@@ -101,6 +104,8 @@ services:
       - RECV_WORKERS_POSTS={worker_join_posts}
       - SEND_WORKERS={filter_exchange}
       - CONTAINER_NAME=join_comments_with_posts
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -128,6 +133,7 @@ COMENTS_FILTERS = """
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
       - CONTAINER_NAME=comments_filter_columns_{id}
+      - WORKER_NUM={id}
     networks:
       - rabbitmq
 """
@@ -147,6 +153,7 @@ FILTER_STUDENTS = """
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS={exchange}
       - CONTAINER_NAME=comments_filter_student_{id}
+      - WORKER_NUM={id}
     networks:
       - rabbitmq
 """
@@ -167,8 +174,12 @@ FILTER_SCORE_STUDENTS = """
       - QUEUE_SEND=student_url_queue
       - CHUNKSIZE={chunksize}
       - CONTAINER_NAME=posts_filter_score_gte_avg_{id}
+      - WORKER_NUM={id}
+      - RECV_WORKERS={filter_exchange}
     networks:
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
 """
 
 POSTS_FILTER = """
@@ -186,6 +197,7 @@ POSTS_FILTER = """
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_{id}
+      - WORKER_NUM={id}
     networks:
       - rabbitmq
 """
@@ -204,6 +216,7 @@ REDUCE_SENTIMETS = """
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
       - CONTAINER_NAME=posts_reduce_avg_sentiment_{id}
+      - WORKER_NUM={id}
     networks:
       - rabbitmq
 """
@@ -259,7 +272,7 @@ def main():
 
     for x in range(1,filter_exchange+1):
         filters_s += FILTER_STUDENTS.format(id=x, exchange=filter_exchange)
-        filters_ss += FILTER_SCORE_STUDENTS.format(id=x, chunksize=chunksize)
+        filters_ss += FILTER_SCORE_STUDENTS.format(id=x, chunksize=chunksize, filter_exchange=filter_exchange)
         reduce_se += REDUCE_SENTIMETS.format(id=x)
 
     compose = INIT_DOCKER.format(worker_join_comments=workers_join_comments,

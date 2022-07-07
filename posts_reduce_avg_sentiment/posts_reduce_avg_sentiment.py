@@ -12,6 +12,7 @@ class PostsAvgSentiment(MonitoredMixin):
         self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(queue_name=queue_send)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
+        super().__init__()
 
     def exit_gracefully(self, *args):
         self.conn_recv.close()

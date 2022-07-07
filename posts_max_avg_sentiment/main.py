@@ -1,5 +1,5 @@
 import logging
-
+import traceback
 from posts_max_avg_sentiment import PostsMaxAvgSentiment
 from common.utils import initialize_log, initialize_config
 
@@ -18,6 +18,7 @@ def main():
         )
         recver.start()
     except Exception as e:
+        print("PERNO ERROR, ", traceback.format_exc())
         logging.info(f"Close Connection")
 
 if __name__ == "__main__":

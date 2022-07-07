@@ -8,7 +8,7 @@ from common.health_check.monitored import MonitoredMixin
 from atomicwrites import atomic_write
 
 
-class PostsMaxAvgSentiment:
+class PostsMaxAvgSentiment(MonitoredMixin):
     def __init__(self, queue_recv, queue_send, recv_workers):
         self.conn_recv = Connection(queue_name=queue_recv)
         self.conn_send = Connection(queue_name=queue_send)
@@ -20,6 +20,7 @@ class PostsMaxAvgSentiment:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.__load_state()
+        super().__init__()
 
     def __load_state(self):
         if os.path.exists('./data_base/post_max_avg_sentiment_state.txt'):

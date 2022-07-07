@@ -29,6 +29,7 @@ class JoinCommentsWithPosts(MonitoredMixin):
         self.send_workers = send_workers
 
         self.__load_state()
+        super().__init__()
 
     def __load_state(self):
         if os.path.exists("./data_base/join_clean"):
@@ -37,13 +38,16 @@ class JoinCommentsWithPosts(MonitoredMixin):
 
         for file in os.listdir("data_base/join_msgs/"):
             path = f"data_base/join_msgs/{file}"
+            if file == '.gitignore':
+                continue
+
             with open(path) as f:
                 msg = f.read()
                 msg_hash = hash(msg)
                 decoded_msg = json.loads(msg)
                 if file.startswith("p_"):
                     self.__add_post(decoded_msg, msg_hash)
-                else:
+                elif file.startswith("c_"):
                     self.__add_comments(decoded_msg, msg_hash)
 
         if os.path.exists('./data_base/join_finish'):

@@ -13,6 +13,7 @@ class PostsFilterColumns(MonitoredMixin):
         self.conn_send_avg = Connection(queue_name=queue_send_to_avg)
         self.worker_num = worker_num
         signal.signal(signal.SIGTERM, self.exit_gracefully)
+        super().__init__()
 
     def exit_gracefully(self, *args):
         self.mon_exit()
