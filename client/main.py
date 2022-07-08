@@ -1,9 +1,8 @@
 import sys
-import logging
 import os
 
 from client import Client
-from common.utils import initialize_log, initialize_config
+from common.utils import initialize_log, initialize_config, logger
 
 
 def main():
@@ -20,8 +19,9 @@ def main():
     ])
     initialize_log()
 
-    logging.info("Client configuration: {}".format(config_params))
-
+    logger.debug("Client configuration: {}".format(config_params))
+    logger.info("Initializing")
+    
     client = Client(
         file_posts=config_params["FILE_POSTS"],        
         posts_queue=config_params["POSTS_QUEUE"],
