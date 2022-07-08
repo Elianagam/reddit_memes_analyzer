@@ -1,7 +1,5 @@
-import logging
-
 from posts_filter_columns import PostsFilterColumns
-from common.utils import initialize_log, initialize_config
+from common.utils import logger, initialize_log, initialize_config
 
 
 def main():
@@ -10,7 +8,8 @@ def main():
             "QUEUE_SEND_AVG", "WORKER_NUM"])
         initialize_log()
 
-        logging.info("Server configuration: {}".format(config_params))
+        logger.info("Initializing Filter Columns")
+        logger.debug("Server configuration: %r", config_params)
 
         recver = PostsFilterColumns(
             queue_recv=config_params["QUEUE_RECV"],
@@ -20,7 +19,7 @@ def main():
         )
         recver.start()
     except Exception as e:
-        logging.info(f"Close Connection {e}")
+        logger.info(f"Close Connection {e}")
 
 
 if __name__ == "__main__":

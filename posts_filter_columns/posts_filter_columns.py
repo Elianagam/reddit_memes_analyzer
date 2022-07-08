@@ -1,9 +1,8 @@
 import signal
-import logging
-
 import json
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class PostsFilterColumns(MonitoredMixin):
@@ -22,6 +21,7 @@ class PostsFilterColumns(MonitoredMixin):
         self.conn_send_avg.close()
 
     def start(self):
+        logger.info("Started Filter Columns")
         self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
@@ -29,11 +29,11 @@ class PostsFilterColumns(MonitoredMixin):
         posts = json.loads(body)
 
         if "end" in posts:
-            logging.info(f"[POSTS_RECV] END")
+            logger.info(f"[POSTS_RECV] END")
             self.conn_send_join.send(json.dumps({"end": self.worker_num}))
             self.conn_send_avg.send(json.dumps({"end": self.worker_num}))
         else:
-            logging.info(f"[POST FILTER COLUMNS] RECV {len(posts)}")
+            logger.info(f"[POST FILTER COLUMNS] RECV {len(posts)}")
             posts_to_join, posts_for_avg = self.__parser(posts)
 
             self.conn_send_join.send(json.dumps(posts_to_join))

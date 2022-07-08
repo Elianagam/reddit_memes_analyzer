@@ -2,21 +2,12 @@ from common.health_check.utils.connections import connect_retry
 from common.health_check.utils import get_container_name
 from common.health_check.constants import HEALTHBEAT_DELAY
 from common.health_check.utils.signals import register_handler, SigTermException
+from common.utils import logger
 import os
 import json
 import time
 import logging
 from multiprocessing import Process
-
-logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.INFO)
-
-
-logging.basicConfig(
-    format='[%(asctime)s] %(levelname)-8s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-)
 
 
 class MonitoredMixin(object):
