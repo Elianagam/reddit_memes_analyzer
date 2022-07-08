@@ -230,6 +230,7 @@ services:
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -312,7 +313,7 @@ services:
       - HEALTHCHECK_NODE_TIMEOUT=6
       - HEALTHBEAT_DELAY=2
       - VICTORY_TIMEOUT=2
-      - LOGLEVEL=DEBUG
+      - LOGLEVEL=INFO
     depends_on:
       - rabbitmq
     volumes:

@@ -32,6 +32,7 @@ from common.utils import logger, initialize_log
 
 initialize_log()
 
+
 class NodeState(Enum):
     """
     Representa todos los estados posibles que puede tener un nodo
