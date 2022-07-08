@@ -1,13 +1,14 @@
 import os
 import signal
-import logging
 import json
 
 from atomicwrites import atomic_write
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
-class JoinCommentsWithPosts:
+class JoinCommentsWithPosts(MonitoredMixin):
     def __init__(self, queue_recv_comments, queue_recv_post, queue_send_students,
                  queue_send_sentiments, chunksize, recv_workers_comments, recv_workers_posts, send_workers):
         self.conn_recv_pst = Connection(queue_name=queue_recv_post)
@@ -28,6 +29,7 @@ class JoinCommentsWithPosts:
         self.send_workers = send_workers
 
         self.__load_state()
+        super().__init__()
 
     def __load_state(self):
         if os.path.exists("./data_base/join_clean"):
@@ -36,13 +38,16 @@ class JoinCommentsWithPosts:
 
         for file in os.listdir("data_base/join_msgs/"):
             path = f"data_base/join_msgs/{file}"
+            if file == '.gitignore':
+                continue
+
             with open(path) as f:
                 msg = f.read()
                 msg_hash = hash(msg)
                 decoded_msg = json.loads(msg)
                 if file.startswith("p_"):
                     self.__add_post(decoded_msg, msg_hash)
-                else:
+                elif file.startswith("c_"):
                     self.__add_comments(decoded_msg, msg_hash)
 
         if os.path.exists('./data_base/join_finish'):
@@ -72,6 +77,11 @@ class JoinCommentsWithPosts:
         with atomic_write("./data_base/join_clean", overwrite=True) as f:
             f.write("True")
 
+        for i in range(self.send_workers):
+            key = i + 1
+            worker_key = f"{key}"
+            self.__send_data(json.dumps({"end": True}), worker_key)
+
         directory = './data_base/join_msgs'
         for f in os.listdir(directory):
             os.remove(os.path.join(directory, f))
@@ -81,11 +91,14 @@ class JoinCommentsWithPosts:
         os.remove("./data_base/join_clean")
 
     def exit_gracefully(self, *args):
+        self.mon_exit()
         self.conn_recv_pst.close()
         self.conn_send_st.close()
         self.conn_send_se.close()
 
     def start(self):
+        logger.info("Started Join Comments & Posts")
+        self.mon_start()
         self.conn_recv_cmt.recv(self.__callback_recv_comments, start_consuming=False, auto_ack=False)
         self.conn_recv_pst.recv(self.__callback_recv_posts, auto_ack=False)
 
@@ -94,11 +107,13 @@ class JoinCommentsWithPosts:
 
         if not self.__finish(my_key="comments", other_key="posts", readed=comments,
                              my_workers=self.recv_workers_comments,
-                             other_workers=self.recv_workers_posts):
+                             other_workers=self.recv_workers_posts,
+                             channel=ch,
+                             method=method):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_comments(comments, msg_hash)
-                self.__store_msg(comments, "c")
+                self.__store_msg(json.loads(body), "c")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -107,31 +122,29 @@ class JoinCommentsWithPosts:
 
         if not self.__finish(my_key="posts", other_key="comments", readed=posts,
                              my_workers=self.recv_workers_posts,
-                             other_workers=self.recv_workers_comments):
+                             other_workers=self.recv_workers_comments,
+                             channel=ch,
+                             method=method):
             msg_hash = hash(body)
             if msg_hash not in self.msg_hash_list:
                 self.__add_post(posts, msg_hash)
-                self.__store_msg(posts, "p")
+                self.__store_msg(json.loads(body), "p")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def __finish(self, my_key, other_key, readed, my_workers, other_workers):
+    def __finish(self, my_key, other_key, readed, my_workers, other_workers, channel, method):
         if "end" in readed:
             if len(self.msg_hash_list) == 0:
                 return True
 
             self.finish[my_key][int(readed["end"]) - 1] = True
-            logging.info(
-                f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
+            logger.info(f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
             self.__store_finish()
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
+                logger.info("FINISH JOIN ALL")
                 self.__send_join_data()
                 # Send end msg to n workers
-                for i in range(self.send_workers):
-                    key = i + 1
-                    worker_key = f"{key}"
-                    self.__send_data(json.dumps(readed), worker_key)
                 self.__clear_old_state()
             return True
         return False
@@ -168,7 +181,9 @@ class JoinCommentsWithPosts:
 
     def __send_join_data(self):
         chunk = []
-        for post_id, post in self.join_dict.items():
+        dic_list = sorted(self.join_dict.items(), key=lambda tup: tup[0])
+
+        for post_id, post in dic_list:
             if not "url" in self.join_dict[post_id]:
                 continue
             if len(chunk) == self.chunksize:

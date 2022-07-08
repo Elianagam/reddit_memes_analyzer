@@ -1,7 +1,6 @@
-import logging
-
+import traceback
 from posts_max_avg_sentiment import PostsMaxAvgSentiment
-from common.utils import initialize_log, initialize_config
+from common.utils import initialize_log, initialize_config, logger
 
 
 def main():
@@ -9,7 +8,8 @@ def main():
         config_params = initialize_config(["QUEUE_RECV", "QUEUE_SEND", "RECV_WORKERS"])
         initialize_log()
 
-        logging.info("Server configuration: {}".format(config_params))
+        logger.debug("Server configuration: {}".format(config_params))
+        logger.info("Initializing")
 
         recver = PostsMaxAvgSentiment(
             config_params["QUEUE_RECV"],
@@ -18,7 +18,9 @@ def main():
         )
         recver.start()
     except Exception as e:
-        logging.info(f"Close Connection")
+        logger.exception("Something Happened")
+        logger.info(f"Close Connection")
+
 
 if __name__ == "__main__":
     main()

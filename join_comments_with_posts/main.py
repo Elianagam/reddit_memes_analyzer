@@ -1,7 +1,5 @@
-import logging
-
 from join_comments_with_posts import JoinCommentsWithPosts
-from common.utils import initialize_log, initialize_config
+from common.utils import initialize_log, initialize_config, logger
 
 
 def main():
@@ -11,7 +9,8 @@ def main():
             "RECV_WORKERS_COMMENTS", "RECV_WORKERS_POSTS", "SEND_WORKERS"])
         initialize_log()
 
-        logging.info("Server configuration: {}".format(config_params))
+        logger.debug("Server configuration: {}".format(config_params))
+        logger.info("Initializing Join Comments & Posts")
 
         recver = JoinCommentsWithPosts(
             queue_recv_comments=config_params["QUEUE_RECV_COMMENTS"],
@@ -25,7 +24,9 @@ def main():
             )
         recver.start()
     except Exception as e:
-        logging.info(f"Close Connection")
+        logger.exception("Something happened")
+        logger.info(f"Close Connection")
+
 
 if __name__ == "__main__":
     main()

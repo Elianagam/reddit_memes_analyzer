@@ -7,6 +7,7 @@ import time
 
 from multiprocessing import Process
 from common.connection import Connection
+from common.utils import logger, chunked
 
 
 class StatusChecker(Process):
@@ -17,13 +18,14 @@ class StatusChecker(Process):
         self.conn_status_send = conn_status_send
 
     def exit_gracefully(self, *args):
-        logging.info("close status checker...")
+        logger.info("close status checker...")
         self.conn_status_send.close()
         sys.exit(0)
 
 
-    def start(self):
-        while self.alive.value == True:
+    def __status_checker(self):
+        while self.alive.value:
+            logger.info(f"--- [SEND STATUS CHECK]")
             self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
             time.sleep(2)
 
@@ -50,7 +52,7 @@ class DataSender(Process):
         sys.exit(0)
 
     def __send_posts(self):
-        logging.info("SEND POST DATA")
+        logger.info("SEND POST DATA")
         fields = ["type", "id", "subreddit.id", "subreddit.name", 
                   "subreddit.nsfw", "created_utc", "permalink", 
                   "domain", "url", "selftext", "title", "score"]
@@ -58,7 +60,7 @@ class DataSender(Process):
         self.__read(self.file_posts, self.conn_posts, fields)
 
     def __send_comments(self):
-        logging.info("SEND COMMENTS DATA")
+        logger.info("SEND COMMENTS DATA")
         fields = ["type","id", "subreddit.id", "subreddit.name",
                   "subreddit.nsfw", "created_utc", "permalink", 
                   "body", "sentiment", "score"]
@@ -68,16 +70,9 @@ class DataSender(Process):
     def __read(self, file_name, conn, fields):
         with open(file_name, mode='r') as csv_file:
             reader = csv.DictReader(csv_file)
-            chunk = []
-            for i, line in enumerate(reader):
-                if (i % self.chunksize == 0 and i > 0):
-                    logging.info(f"CHUNK {len(chunk)}")
-                    conn.send(body=json.dumps(chunk))
-                    chunk = []
-                chunk.append(line)
-            
-            if len(chunk) != 0:
+
+            for chunk in chunked(iterable=reader, n=self.chunksize):
                 conn.send(body=json.dumps(chunk))
 
-            logging.info(f"CHUNK {file_name} - {len(chunk)}")
+            logger.info(f"CHUNK {file_name} - {len(chunk)}")
             conn.send(body=json.dumps({"end": True}))

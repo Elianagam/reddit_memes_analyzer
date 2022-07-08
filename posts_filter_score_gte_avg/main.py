@@ -1,7 +1,7 @@
-import logging
+import traceback
 
 from posts_filter_score_gte_avg import PostsFilterScoreGteAvg
-from common.utils import initialize_log, initialize_config
+from common.utils import initialize_log, initialize_config, logger
 
 
 def main():
@@ -10,7 +10,8 @@ def main():
             "QUEUE_SEND", "WORKER_NUM", "CHUNKSIZE", "RECV_WORKERS"])
         initialize_log()
 
-        logging.info("Server configuration: {}".format(config_params))
+        logger.debug("Server configuration: {}".format(config_params))
+        logger.info("Initializing")
 
         recver = PostsFilterScoreGteAvg(
             config_params["QUEUE_RECV_AVG"],
@@ -22,7 +23,8 @@ def main():
         )
         recver.start()
     except Exception as e:
-        logging.info(f"Close Connection {e}")
+        logger.exception("Something Happened")
+        logger.info(f"Close Connection {e}")
 
 
 if __name__ == "__main__":

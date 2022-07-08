@@ -10,7 +10,7 @@ python3 docker_compose.py <num_reducers> <worker_filter_comments> <worker_filter
 
 Ejemplo
 ```
-python3 docker_compose.py 3 2 2 500
+python3 docker_compose.py 3 2 2 500 3
 ```
 
 ## Run docker-compose
@@ -31,6 +31,7 @@ make docker-system-image
 Para correr el docker compose y poder visualizar los logs se corren en secuencia los siguientes comandos:
 ```
 make docker-compose-up
+make docker-compose-logs
 ```
 y para el cliente con diferentes env files
 ```

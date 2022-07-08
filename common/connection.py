@@ -1,7 +1,8 @@
 import pika
 import pika.exceptions
 import time
-import logging
+from common.utils import logger
+from common.health_check.utils.connections import connect_retry
 
 
 class Connection:
@@ -11,16 +12,11 @@ class Connection:
             self.connection = conn.connection
             self.channel = conn.channel
         else:
-            time.sleep(timeout)
-            connected = False
-            while not connected:
-                try:
-                    self.connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-                    connected=True
-
-                except pika.exceptions.AMQPConnectionError:
-                    logging.info("Rabbitmq not conected yet")
-                    time.sleep(1)
+            self.connection = connect_retry(host='rabbitmq',
+                                            heartbeat=60*15,
+                                            blocked_connection_timeout=60*15)
+            if not self.connection:
+                logger.error("No connection could be established")
 
             self.channel = self.connection.channel()
             self.channel.confirm_delivery()
@@ -40,7 +36,7 @@ class Connection:
             )
         if bind:
             # Si es exgange que recibe tiene que crear una anon queue 
-            anon_queue = self.channel.queue_declare(queue='', exclusive=True)
+            anon_queue = self.channel.queue_declare(queue=f"{self.exchange_name}_{routing_key}", exclusive=False)
             self.queue_name = anon_queue.method.queue
             if routing_key:
                 self.channel.queue_bind(

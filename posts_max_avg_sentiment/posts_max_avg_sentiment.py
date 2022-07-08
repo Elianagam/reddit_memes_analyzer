@@ -1,13 +1,14 @@
 import os
 import signal
-import logging
 import json
 
 from common.connection import Connection
+from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 from atomicwrites import atomic_write
 
 
-class PostsMaxAvgSentiment:
+class PostsMaxAvgSentiment(MonitoredMixin):
     def __init__(self, queue_recv, queue_send, recv_workers):
         self.conn_recv = Connection(queue_name=queue_recv)
         self.conn_send = Connection(queue_name=queue_send)
@@ -19,6 +20,7 @@ class PostsMaxAvgSentiment:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
         self.__load_state()
+        super().__init__()
 
     def __load_state(self):
         if os.path.exists('./data_base/post_max_avg_sentiment_state.txt'):
@@ -39,10 +41,13 @@ class PostsMaxAvgSentiment:
             f.write(store)
 
     def exit_gracefully(self, *args):
+        self.mon_exit()
         self.conn_recv.close()
         self.conn_send.close()
 
     def start(self):
+        logger.info("Starting")
+        self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
     def __callback(self, ch, method, properties, body):
@@ -54,7 +59,7 @@ class PostsMaxAvgSentiment:
                 self.__store_state()
 
                 if False not in self.end_recv:
-                    self.__end_recv(posts)
+                    self.__end_recv({"end": -2})
                     self.end_recv = [False] * self.recv_workers
                     self.max_avg = {"url": None, "avg_sentiment": 0}
                     self.__store_state()
@@ -65,11 +70,11 @@ class PostsMaxAvgSentiment:
 
     def __end_recv(self, end_msg):
         # Send only post with max avg sentiment
-        logging.info(f" --- [POST MAX AVG SENTIMENT] {self.max_avg}")
+        logger.info(f" --- [POST MAX AVG SENTIMENT] {self.max_avg}")
 
         download = self.__download_image()
         self.conn_send.send(json.dumps(download))
-        self.conn_send.send(json.dumps({"end": True}))
+        self.conn_send.send(json.dumps(end_msg))
 
     def __get_max_avg_sentiment(self, posts):
         for post in posts:
@@ -96,7 +101,7 @@ class PostsMaxAvgSentiment:
                 byte_image = bytearray(image.read())
                 encoded = base64.b64encode(byte_image)
                 data = encoded.decode('ascii')
-                logging.info(f"[DOWNLOAD_IMAGE] Success {filename}")
+                logger.info(f"[DOWNLOAD_IMAGE] Success {filename}")
                 return {"image_bytes": data}
         else:
-            logging.error(f"[DOWNLOAD_IMAGE] Fail")
+            logger.error(f"[DOWNLOAD_IMAGE] Fail")

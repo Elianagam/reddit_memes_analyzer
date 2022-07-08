@@ -6,6 +6,7 @@ import sys
 import time
 from multiprocessing import Process, Manager
 from common.connection import Connection
+from common.utils import logger
 from data_sender import DataSender, StatusChecker
 
 
@@ -39,6 +40,8 @@ class Client:
         self.client_id = client_id
         self.data_to_recv = 0
         self.data_recved = 0
+        self.students_sum = 0
+        self.msgs = []
         self.worker_key_response = f"response.client{self.client_id}"
 
         self.conn_recv_response = Connection(exchange_name=response_queue, bind=True,
@@ -46,22 +49,24 @@ class Client:
 
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
 
-        self.channel_response = self.conn_recv_response.get_channel()        
+        self.channel_response = self.conn_recv_response.get_channel()
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
         self.conn_recv_response.close()
+        self.conn_status_send.close()
         if self.checker != None and self.data_sender != None:
             self.checker.join()
             self.data_sender.join()
         sys.exit(0)
 
     def start(self):
+        logger.info("Starting")
         self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
-        logging.info("waiting status response...")
+        logger.info("waiting status response...")
         status = self.get_status()
-
-        logging.info(f"STATUS: {status}")
+        
+        logger.info(f"STATUS: {status}")
         
         if status["status"] == "AVAILABLE":
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
@@ -74,39 +79,43 @@ class Client:
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
 
-        if "posts_score_avg" in sink_recv:
-            logging.info(f"* * * [AVG_SCORE] {sink_recv}")
-            self.data_recved += 1
-        elif "image_bytes" in sink_recv:
-            logging.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
-            self.data_recved += 1
-        elif "status" in sink_recv:
-            self.__callback_status(ch, method, properties, body)
-        else: 
-            logging.info(f"* * * [STUDENTS] {len(sink_recv)}")
-            self.data_recved += 1
+        msg_hash = hash(body)
+
+        if msg_hash not in self.msgs:
+            self.msgs.append(msg_hash)
+            if "posts_score_avg" in sink_recv:
+                logger.info(f"* * * [AVG_SCORE] {sink_recv}")
+                self.data_recved += 1
+            elif "image_bytes" in sink_recv:
+                logger.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
+                self.data_recved += 1
+            elif "status" in sink_recv:
+                self.__callback_status(ch, method, properties, body)
+            else:
+                logger.info(f"* * * [STUDENTS] {len(sink_recv)}")
+                self.students_sum += len(sink_recv)
+                self.data_recved += 1
 
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
         
-        logging.info(f"status: {sink_recv}")
         if sink_recv["status"] == "FINISH":
+            logger.info(f"[CLOSE CLIENT]")
+            logger.info(f"* * * [STUDENTS] FINAL {self.students_sum}")
             self.data_to_recv = sink_recv["data"]
             if self.data_recved == self.data_to_recv:
-                logging.info(f"[CLOSE CLIENT]")
                 self.alive.value = False
                 self.exit_gracefully()
 
         elif sink_recv["status"] == "BUSY":
-            logging.info("System is busy, try later...")
+            logger.info("System is busy, try later...")
             self.exit_gracefully()
-
 
         elif sink_recv["status"] == "AVAILABLE":
             self.alive.value = True
 
         elif sink_recv["status"] == "PENDING":
-            logging.info("System hasn't finish yet...")
+            logger.info("System hasn't finish yet...")
 
     def get_status(self):
         queue_name = self.conn_recv_response.get_queue()

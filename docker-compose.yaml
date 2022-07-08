@@ -17,10 +17,10 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
-      - COMMETS_QUEUE=comments_queue 
+      - COMMETS_QUEUE=comments_queue
       - POSTS_QUEUE=posts_queue
       - SEND_WORKERS_COMMENTS=2
       - SEND_WORKERS_POSTS=2
@@ -33,6 +33,12 @@ services:
       - STATUS_CHECK_QUEUE=client_status_check_queue
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
       - RECV_WORKERS_STUDENTS=2
+      - PYTHONHASHSEED=0
+      - CONTAINER_NAME=receiver
+      - PYTHONUNBUFFERED=1
+      - LOGLEVEL=DEBUG
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
@@ -44,12 +50,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
+      - CONTAINER_NAME=comments_filter_columns_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -60,12 +68,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=comments_queue
       - QUEUE_SEND=comments_filter_queue
+      - CONTAINER_NAME=comments_filter_columns_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -77,13 +87,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - CONTAINER_NAME=comments_filter_student_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -94,13 +106,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_st_queue
       - QUEUE_SEND=posts_student_queue
       - RECV_WORKERS=2
+      - CONTAINER_NAME=comments_filter_student_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -112,19 +126,21 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - CHUNKSIZE=500
+      - CONTAINER_NAME=posts_filter_score_gte_avg_1
       - WORKER_NUM=1
-      - CHUNKSIZE=400
       - RECV_WORKERS=2
-    volumes:
-      - ./data_base:/data_base
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
 
   posts_filter_score_gte_avg_2:
     container_name: posts_filter_score_gte_avg_2
@@ -133,19 +149,21 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV_AVG=posts_avg_score_queue
       - QUEUE_RECV_STUDENTS=posts_student_queue
       - QUEUE_SEND=student_url_queue
+      - CHUNKSIZE=500
+      - CONTAINER_NAME=posts_filter_score_gte_avg_2
       - WORKER_NUM=2
-      - CHUNKSIZE=400
       - RECV_WORKERS=2
-    volumes:
-      - ./data_base:/data_base
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
+    volumes:
+      - ./data_base:/data_base
 
   
   posts_reduce_avg_sentiment_1:
@@ -155,12 +173,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - CONTAINER_NAME=posts_reduce_avg_sentiment_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -171,12 +191,14 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=cmt_pst_join_se_queue
       - QUEUE_SEND=post_sentiments_queue
+      - CONTAINER_NAME=posts_reduce_avg_sentiment_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -188,7 +210,7 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     volumes:
       - ./posts_max_avg_sentiment/data:/data
@@ -197,6 +219,8 @@ services:
       - QUEUE_RECV=post_sentiments_queue
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS=2
+      - CONTAINER_NAME=posts_max_avg_sentiment
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -208,13 +232,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
+      - CONTAINER_NAME=posts_filter_columns_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -225,13 +251,15 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_queue
       - QUEUE_SEND_JOIN=posts_for_join_queue
       - QUEUE_SEND_AVG=posts_for_avg_queue
+      - CONTAINER_NAME=posts_filter_columns_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -241,16 +269,19 @@ services:
     image: posts_avg_score:latest
     entrypoint: python3 /main.py
     restart: on-failure
+    volumes:
+      - ./data_base:/data_base
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
     environment:
       - QUEUE_RECV=posts_for_avg_queue
       - QUEUE_SEND=posts_avg_score_queue
       - RECV_WORKERS=2
-    volumes:
-      - ./data_base:/data_base
+      - CONTAINER_NAME=posts_avg_score
+      - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -261,25 +292,53 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-    links: 
+    links:
       - rabbitmq
-    volumes:
-      - ./data_base:/data_base
     environment:
       - QUEUE_RECV_COMMENTS=comments_filter_queue
       - QUEUE_RECV_POSTS=posts_for_join_queue
       - QUEUE_SEND_STUDENTS=cmt_pst_join_st_queue
       - QUEUE_SEND_SENTIMENTS=cmt_pst_join_se_queue
-      - CHUNKSIZE=400
+      - CHUNKSIZE=500
       - RECV_WORKERS_COMMENTS=2
       - RECV_WORKERS_POSTS=2
       - SEND_WORKERS=2
+      - CONTAINER_NAME=join_comments_with_posts
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
+    volumes:
+      - ./data_base:/data_base
     networks:
       - rabbitmq
 
+  
+  healthchecker:
+    image: health_check:latest
+    deploy:
+      replicas: 2
+    environment:
+      - REPLICAS=2
+      - ELECTION_TIMEOUT=4
+      - HEARTBEAT_SLEEP=1
+      - HEARTBEAT_TIMEOUT=4
+      - SLEEP_SECONDS=1
+      - HEALTHCHECK_READ_TIMEOUT=2
+      - HEALTHCHECK_NODE_TIMEOUT=6
+      - HEALTHBEAT_DELAY=2
+      - VICTORY_TIMEOUT=2
+      - LOGLEVEL=DEBUG
+    depends_on:
+      - rabbitmq
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./persistence/:/tmp/persistence/
+    networks:
+      - rabbitmq
+
+
 networks:
   rabbitmq:
+    name: rabbitmq
     ipam:
       driver: default
       config:

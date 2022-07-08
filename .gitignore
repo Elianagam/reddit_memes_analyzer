@@ -1,2 +1,6 @@
 data/*
 posts_max_avg_sentiment/data/
+.idea/
+.pyc
+__pycache__/
+docker-compose.bkp
