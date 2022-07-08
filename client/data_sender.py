@@ -4,33 +4,51 @@ import json
 import signal
 import sys
 import time
+import os
 
 from multiprocessing import Process
 from common.connection import Connection
 from common.utils import logger, chunked
+from common.health_check.utils.signals import register_handler, SigTermException
 
 
-class StatusChecker(Process):
+class StatusChecker:
     def __init__(self, alive, conn_status_send, client_id):
         super(StatusChecker, self).__init__()
         self.alive = alive
         self.client_id = client_id
         self.conn_status_send = conn_status_send
+        self.process = None
+        register_handler()
 
-    def exit_gracefully(self, *args):
-        logger.info("close status checker...")
+    def start(self):
+        logger.info("Starting Status Checker process")
+        process = Process(target=self._run)
+        process.daemon = True
+        process.start()
+        self.process = process
+
+    def _run(self):
+        try:
+            while self.alive.value:
+                logger.info(f"--- [SEND STATUS CHECK]")
+                self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
+                logger.info("[%d] Status Checker", os.getpid())
+                time.sleep(30)
+        except SigTermException:
+            logger.info("Received Sigterm")
+
+    def terminate(self, *args):
+        if self.process:
+            self.process.terminate()
+            self.process.join()
+            self.process = None
+
         self.conn_status_send.close()
         sys.exit(0)
 
 
-    def __status_checker(self):
-        while self.alive.value:
-            logger.info(f"--- [SEND STATUS CHECK]")
-            self.conn_status_send.send(body=json.dumps({"client_id": self.client_id}))
-            time.sleep(2)
-
-
-class DataSender(Process):
+class DataSender:
 
     def __init__(self, file_posts, file_comments, posts_queue, comments_queue, chunksize):
         super(DataSender, self).__init__()
@@ -40,14 +58,30 @@ class DataSender(Process):
 
         self.conn_posts = Connection(queue_name=posts_queue, timeout=1)
         self.conn_comments = Connection(queue_name=comments_queue, conn=self.conn_posts)
+        self.process = None
 
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
+        register_handler()
 
     def start(self):
-        self.__send_posts()
-        self.__send_comments()
+        logger.info("Starting Data Sender process")
+        process = Process(target=self._run)
+        process.daemon = True
+        process.start()
+        self.process = process
 
-    def exit_gracefully(self, *args):
+    def _run(self):
+        try:
+            self.__send_posts()
+            self.__send_comments()
+        except SigTermException:
+            logger.info("Received Sigterm")
+
+    def terminate(self, *args):
+        if self.process:
+            self.process.terminate()
+            self.process.join()
+            self.process = None
+
         self.conn_posts.close()
         sys.exit(0)
 

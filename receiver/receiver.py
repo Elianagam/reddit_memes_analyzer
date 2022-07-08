@@ -73,9 +73,12 @@ class Receiver(MonitoredMixin):
                 actual_client = f.readline().rstrip('\n')
                 if "None" == actual_client:
                     self.actual_client = None
+                else:
+                    self.actual_client = int(actual_client)
 
                 self.finish = json.loads(f.readline().rstrip('\n'))
                 self.msg_hash = json.loads(f.readline())
+                logger.info("ESTE ES EL ESTADO client %s, finish %s, hash %s", self.actual_client, self.finish, self.msg_hash)
 
     def __store_state(self):
         store = f"{self.data_to_send}\n{self.actual_client}\n{json.dumps(self.finish)}\n{json.dumps(self.msg_hash)}"

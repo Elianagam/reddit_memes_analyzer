@@ -4,6 +4,7 @@ import csv
 import json
 import sys
 import time
+import os
 from multiprocessing import Process, Manager
 from common.connection import Connection
 from common.utils import logger
@@ -72,7 +73,9 @@ class Client:
             self.data_sender = DataSender(self.file_posts, self.file_comments, 
                 self.posts_queue, self.comments_queue, self.chunksize).start()
 
-            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id)
+            logger.info("Inicializo el Status Checker, pid %d", os.getpid())
+            self.checker = StatusChecker(self.alive, self.conn_status_send, self.client_id).start()
+            logger.info("Inicializo el get response")
             self.get_response(self.__callback)
             
             
@@ -105,10 +108,12 @@ class Client:
             self.data_to_recv = sink_recv["data"]
             if self.data_recved == self.data_to_recv:
                 self.alive.value = False
+                ch.basic_ack(method.delivery_tag)
                 self.exit_gracefully()
 
         elif sink_recv["status"] == "BUSY":
             logger.info("System is busy, try later...")
+            ch.basic_ack(method.delivery_tag)
             self.exit_gracefully()
 
         elif sink_recv["status"] == "AVAILABLE":
@@ -131,5 +136,8 @@ class Client:
         queue_name = self.conn_recv_response.get_queue()
         for method, properties, body in self.channel_response.consume(queue_name, inactivity_timeout=TIMEOUT):
             if body != None:
+                logger.info("[%d] Get response cosas", os.getpid())
                 callback(self.channel_response, method, properties, body)
                 self.channel_response.basic_ack(method.delivery_tag)
+            else:
+                logger.info("[%d] Get response tuvo timeout", os.getpid())

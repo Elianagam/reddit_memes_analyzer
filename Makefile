@@ -24,7 +24,7 @@ docker-client-run-2:
 .PHONY: docker-client-run-2
 
 docker-client-run-3:
-	docker run --env-file client/c2.env -v $(PWD)/data/:/data/ --network=rabbitmq "client:latest"
+	docker run --env-file client/c3.env -v $(PWD)/data/:/data/ --network=rabbitmq "client:latest"
 .PHONY: docker-client-run-3
 
 docker-client-logs:
