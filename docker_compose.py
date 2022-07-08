@@ -36,6 +36,7 @@ services:
       - STATUS_RESPONSE_QUEUE=client_status_response_queue
       - RECV_WORKERS_STUDENTS={filter_exchange}
       - CONTAINER_NAME=receiver
+      - LOGLEVEL=DEBUG
     volumes:
       - ./data_base:/data_base
     networks:
@@ -63,6 +64,7 @@ services:
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS={filter_exchange}
       - CONTAINER_NAME=posts_max_avg_sentiment
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -85,6 +87,7 @@ services:
       - RECV_WORKERS={worker_join_posts}
       - CONTAINER_NAME=posts_avg_score
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -108,6 +111,7 @@ services:
       - SEND_WORKERS={filter_exchange}
       - CONTAINER_NAME=join_comments_with_posts
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     volumes:
       - ./data_base:/data_base
     networks:
@@ -140,6 +144,7 @@ COMENTS_FILTERS = """
       - CONTAINER_NAME=comments_filter_columns_{id}
       - WORKER_NUM={id}
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 """
@@ -160,6 +165,7 @@ FILTER_STUDENTS = """
       - RECV_WORKERS={exchange}
       - CONTAINER_NAME=comments_filter_student_{id}
       - WORKER_NUM={id}
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 """
@@ -182,6 +188,7 @@ FILTER_SCORE_STUDENTS = """
       - CONTAINER_NAME=posts_filter_score_gte_avg_{id}
       - WORKER_NUM={id}
       - RECV_WORKERS={filter_exchange}
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
     volumes:
@@ -204,6 +211,7 @@ POSTS_FILTER = """
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_{id}
       - WORKER_NUM={id}
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 """
@@ -223,6 +231,7 @@ REDUCE_SENTIMETS = """
       - QUEUE_SEND=post_sentiments_queue
       - CONTAINER_NAME=posts_reduce_avg_sentiment_{id}
       - WORKER_NUM={id}
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 """
@@ -243,6 +252,7 @@ HEALTH_CHECKER = """
       - HEALTHCHECK_NODE_TIMEOUT=6
       - HEALTHBEAT_DELAY=2
       - VICTORY_TIMEOUT=2
+      - LOGLEVEL=DEBUG
     depends_on:
       - rabbitmq
     volumes:
