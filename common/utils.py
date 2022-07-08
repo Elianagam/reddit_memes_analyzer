@@ -39,3 +39,15 @@ def initialize_config(params=[]):
     except ValueError as e:
         raise ValueError("Key could not be parsed. Error: {}. Aborting server".format(e))
     return config_params
+
+
+def chunked(iterable, n):
+    chunk = []
+    for i, line in enumerate(iterable):
+        if (i % n == 0 and i > 0):
+            yield chunk
+            chunk = []
+        chunk.append(line)
+
+    if chunk:
+        yield chunk

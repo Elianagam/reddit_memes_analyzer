@@ -6,7 +6,7 @@ import time
 
 from multiprocessing import Process
 from common.connection import Connection
-from common.utils import logger
+from common.utils import logger, chunked
 
 
 class StatusChecker(Process):
@@ -69,15 +69,8 @@ class DataSender(Process):
     def __read(self, file_name, conn, fields):
         with open(file_name, mode='r') as csv_file:
             reader = csv.DictReader(csv_file)
-            chunk = []
-            for i, line in enumerate(reader):
-                if (i % self.chunksize == 0 and i > 0):
-                    logger.info(f"CHUNK {len(chunk)}")
-                    conn.send(body=json.dumps(chunk))
-                    chunk = []
-                chunk.append(line)
-            
-            if len(chunk) != 0:
+
+            for chunk in chunked(iterable=reader, n=self.chunksize):
                 conn.send(body=json.dumps(chunk))
 
             logger.info(f"CHUNK {file_name} - {len(chunk)}")
