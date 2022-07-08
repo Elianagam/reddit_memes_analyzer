@@ -16,15 +16,15 @@ docker-client-run-old:
 .PHONY: docker-client-run-old
 
 docker-client-run:
-		docker run --env-file client/.env  --network=rabbitmq "client:latest"
+	docker run --env-file client/.env  -v $(PWD)/data/:/data/ --network=rabbitmq "client:latest"
 .PHONY: docker-client-run
 
 docker-client-run-2:
-	docker run --env-file client/c2.env  --network=rabbitmq "client:latest"
+	docker run --env-file client/c2.env -v $(PWD)/data/:/data/ --network=rabbitmq "client:latest"
 .PHONY: docker-client-run-2
 
 docker-client-run-3:
-	docker run --env-file client/c2.env  --network=rabbitmq "client:latest"
+	docker run --env-file client/c2.env -v $(PWD)/data/:/data/ --network=rabbitmq "client:latest"
 .PHONY: docker-client-run-3
 
 docker-client-logs:
