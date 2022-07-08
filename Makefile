@@ -51,3 +51,9 @@ docker-compose-down:
 docker-compose-logs:
 	docker-compose -f docker-compose.yaml logs -f
 .PHONY: docker-compose-logs
+
+clean:
+	sudo rm -f ./data_base/join_msgs/*
+	sudo rm -f ./persistence/*
+	sudo rm -f ./data_base/*
+.PHONE: clean
