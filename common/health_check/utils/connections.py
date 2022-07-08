@@ -1,5 +1,6 @@
 from retry import retry
 from pika.exceptions import AMQPConnectionError
+from common.utils import logger
 import pika
 import os
 
@@ -8,8 +9,8 @@ CONNECTION_RETRY_BACKOFF = int(os.environ.get('CONNECTION_RETRY_BACKOFF', 2))
 CONNECTION_RETRIES = int(os.environ.get('CONNECTION_RERIES', 5))
 
 
-@retry(exceptions=AMQPConnectionError, delay=CONNECTION_RETRY_DELAY, backoff=CONNECTION_RETRY_BACKOFF, tries=CONNECTION_RETRIES)
-def _connect_retry(host):
+@retry(exceptions=AMQPConnectionError, delay=CONNECTION_RETRY_DELAY, backoff=CONNECTION_RETRY_BACKOFF, tries=CONNECTION_RETRIES, logger=logger)
+def _connect_retry(host, **kwargs):
     """
     Connect to a rabbitmq with a retry mechanism
 
@@ -20,11 +21,11 @@ def _connect_retry(host):
     Currently we use the retry lib (not builtin) with a default delay of 5 seconds and 5 max retries. Each retry will double
     the time before the next try.
     """
-    return pika.BlockingConnection(pika.ConnectionParameters(host=host))
+    return pika.BlockingConnection(pika.ConnectionParameters(host=host, **kwargs))
 
 
-def connect_retry(host='rabbitmq'):
+def connect_retry(host='rabbitmq', **kwargs):
     try:
-        return _connect_retry(host)
+        return _connect_retry(host=host, **kwargs)
     except AMQPConnectionError:
         return None

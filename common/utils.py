@@ -7,7 +7,7 @@ from common.constants import LOG_LEVEL
 LOG_LEVEL_OPTS = ('CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'NOTSET', 'WARNING')
 SET_LOG_LEVEL = LOG_LEVEL if LOG_LEVEL in LOG_LEVEL_OPTS else 'INFO'
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('reddit')
 _set = False
 
 
@@ -22,7 +22,7 @@ def initialize_log(log_level=None):
     if not _set:
         logger.setLevel(level=log_level or SET_LOG_LEVEL)
         fh = logging.StreamHandler()
-        fh_formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)-8s] %(message)s')
+        fh_formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s')
         fh.setFormatter(fh_formatter)
         logger.addHandler(fh)
         _set = True
