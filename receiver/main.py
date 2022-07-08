@@ -1,9 +1,8 @@
 import sys
-import logging
 import os
 
 from receiver import Receiver
-from common.utils import initialize_log, initialize_config
+from common.utils import initialize_log, initialize_config, logger
 
 
 def main():
@@ -15,7 +14,9 @@ def main():
             "RECV_WORKERS_STUDENTS"])
         initialize_log()
 
-        logging.info("Client configuration: {}".format(config_params))
+        logger.debug("Client configuration: {}".format(config_params))
+        logger.info("Initializing")
+
         recv = Receiver(
             comments_queue=config_params["COMMETS_QUEUE"],
             posts_queue=config_params["POSTS_QUEUE"],
@@ -34,7 +35,7 @@ def main():
         
         recv.start()
     except Exception as e:
-        print(f"Close Connection {e}")
+        logger.exception("Something Happened")
         sys.exit(0)
 
 

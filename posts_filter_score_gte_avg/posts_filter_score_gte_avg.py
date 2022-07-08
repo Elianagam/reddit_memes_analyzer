@@ -1,10 +1,10 @@
-import logging
 import os
 import signal
 
 import json
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 from atomicwrites import atomic_write
 
 
@@ -32,6 +32,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
         self.conn_send.close()
 
     def start(self):
+        logger.info("Starting")
         self.mon_start()
         self.conn_recv_avg.recv(self.__callback_avg, start_consuming=False, auto_ack=False)
         self.conn_recv_students.recv(self.__callback_students, auto_ack=False)
@@ -42,7 +43,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
             with open(f'./data_base/post_filter_gte_avg_arrived_early_{self.worker_num}.txt') as f:
                 self.arrived_early = json.loads(f.read())
 
-            logging.info(f"loaded: {len(self.arrived_early)} dearly arrive")
+            logger.info(f"loaded: {len(self.arrived_early)} dearly arrive")
 
         if os.path.exists(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt'):
             with open(f'./data_base/post_filter_gte_avg_avg_{self.worker_num}.txt') as f:
@@ -52,7 +53,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
 
                 self.finish = json.loads(f.readline())
 
-            logging.info(f"loaded: {self.avg_score} avg, finish: {self.finish}")
+            logger.info(f"loaded: {self.avg_score} avg, finish: {self.finish}")
 
     def __store_state(self):
         store = "{}\n{}".format(self.avg_score, json.dumps(self.finish))
@@ -69,7 +70,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
         if "end" in posts:
             if self.avg_score is not None and len(self.arrived_early) == 0:
                 self.finish[int(posts["end"]) - 1] = True
-                logging.info(self.finish)
+                logger.info(self.finish)
                 self.__store_state()
                 if False not in self.finish:
                     self.conn_send.send(json.dumps({"end": self.worker_num}))
@@ -78,7 +79,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
                     self.__store_state()
             elif self.avg_score is None and len(self.arrived_early) != 0:
                 self.finish[int(posts["end"]) - 1] = True
-                logging.info(self.finish)
+                logger.info(self.finish)
                 self.__store_state()
         elif self.avg_score is not None:
             self.__parser(posts)
@@ -93,7 +94,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
         avg = json.loads(body)
 
         if "end" in avg:
-            logging.info(f"[AVG END] {self.avg_score}")
+            logger.info(f"[AVG END] {self.avg_score}")
         elif "posts_score_avg" in avg:
             self.avg_score = float(avg["posts_score_avg"])
             self.__send_arrive_early()
@@ -106,7 +107,7 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def __parser(self, posts):
-        logging.info(f"parser: {posts}")
+        logger.info(f"parser: {posts}")
 
         list_posts = []
 
@@ -115,17 +116,17 @@ class PostsFilterScoreGteAvg(MonitoredMixin):
                 list_posts.append({"url": post["url"]})
 
         if len(list_posts) != 0:
-            logging.info(f"[STUDENT TO SEND] {list_posts}")
+            logger.info(f"[STUDENT TO SEND] {list_posts}")
             self.conn_send.send(json.dumps(list_posts))
 
     def __send_arrive_early(self):
         n = self.chunksize
-        logging.info(f"arrived_early: {len(self.arrived_early)}")
+        logger.info(f"arrived_early: {len(self.arrived_early)}")
         chunks = []
         for i in range(0, len(self.arrived_early), n):
             chunks.append(self.arrived_early[i:i+n])
         for chunk in chunks:
-            logging.info(f"[chunks] {chunks}")
+            logger.info(f"[chunks] {chunks}")
             self.__parser(chunk)
 
         self.arrived_early = []

@@ -19,6 +19,7 @@ def main():
         )
         recver.start()
     except Exception as e:
+        logger.exception("Something Happened")
         logger.info(f"Close Connection {e}")
 
 

@@ -1,12 +1,11 @@
 import os
 import signal
-import logging
-
 import json
 
 from atomicwrites import atomic_write
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class PostsAvgScore(MonitoredMixin):
@@ -39,13 +38,13 @@ class PostsAvgScore(MonitoredMixin):
 
                 self.msg_hash = json.loads(f.readline())
 
-        logging.info(f"loaded: {len(self.msg_hash)} hashs, sum_score {self.sum_score}, count {self.count}")
+        logger.info(f"loaded: {len(self.msg_hash)} hashs, sum_score {self.sum_score}, count {self.count}")
 
         if os.path.exists('./data_base/avg_end_recv.txt'):
             with open('./data_base/avg_end_recv.txt') as f:
                 self.end_recv = json.loads(f.read())
 
-        logging.info(f"end_recv: {self.end_recv}")
+        logger.info(f"end_recv: {self.end_recv}")
 
     def __store_state(self):
         store = f"{self.sum_score}\n{self.count}\n{json.dumps(self.msg_hash)}"
@@ -79,6 +78,7 @@ class PostsAvgScore(MonitoredMixin):
         self.conn_send.close()
 
     def start(self):
+        logger.info("Starting")
         self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
         self.exit_gracefully()
@@ -113,5 +113,5 @@ class PostsAvgScore(MonitoredMixin):
     def __calculate_avg(self):
         avg = self.sum_score / self.count
 
-        logging.info(f" --- [POST_SCORE_AVG] {avg}")
+        logger.info(f" --- [POST_SCORE_AVG] {avg}")
         return avg

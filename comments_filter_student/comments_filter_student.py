@@ -1,14 +1,12 @@
 import signal
-import logging
-
 import json
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class CommentsFilterStudent(MonitoredMixin):
     def __init__(self, queue_recv, queue_send, recv_workers, worker_num):
-        print("PERNO dentro del init")
         self.conn_recv = Connection(exchange_name=queue_recv, bind=True, exchange_type='topic', routing_key=f"{worker_num}")
         self.conn_send = Connection(exchange_name=queue_send, exchange_type='topic')
         self.worker_num = worker_num
@@ -22,6 +20,7 @@ class CommentsFilterStudent(MonitoredMixin):
         self.conn_send.close()
 
     def start(self):
+        logger.info("Starting Comments Filter Student")
         self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
@@ -50,7 +49,7 @@ class CommentsFilterStudent(MonitoredMixin):
                     "score": comment["score"]
                 }
                 student_comments.append(comment_new)
-        logging.info(f"[STUDENTS TO SEND] {len(student_comments)}")
+        logger.info(f"[STUDENTS TO SEND] {len(student_comments)}")
         return student_comments
 
     def __filter_student(self, comment):

@@ -1,11 +1,11 @@
 import os
 import signal
-import logging
 import json
 
 from atomicwrites import atomic_write
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class JoinCommentsWithPosts(MonitoredMixin):
@@ -97,6 +97,7 @@ class JoinCommentsWithPosts(MonitoredMixin):
         self.conn_send_se.close()
 
     def start(self):
+        logger.info("Started Join Comments & Posts")
         self.mon_start()
         self.conn_recv_cmt.recv(self.__callback_recv_comments, start_consuming=False, auto_ack=False)
         self.conn_recv_pst.recv(self.__callback_recv_posts, auto_ack=False)
@@ -137,13 +138,11 @@ class JoinCommentsWithPosts(MonitoredMixin):
                 return True
 
             self.finish[my_key][int(readed["end"]) - 1] = True
-            print(f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
-            logging.info(
-                f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
+            logger.info(f"""[FINISH JOIN ALL?] {self.finish} | Comments_w: {self.recv_workers_comments} - Posts_w: {self.recv_workers_posts}""")
             self.__store_finish()
             if False not in self.finish[other_key] \
                     and False not in self.finish[my_key]:
-                print("FINISH JOIN ALL")
+                logger.info("FINISH JOIN ALL")
                 self.__send_join_data()
                 # Send end msg to n workers
                 self.__clear_old_state()

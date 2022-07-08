@@ -36,6 +36,7 @@ services:
       - PYTHONHASHSEED=0
       - CONTAINER_NAME=receiver
       - PYTHONUNBUFFERED=1
+      - LOGLEVEL=DEBUG
     volumes:
       - ./data_base:/data_base
     networks:
@@ -94,6 +95,7 @@ services:
       - RECV_WORKERS=2
       - CONTAINER_NAME=comments_filter_student_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -112,6 +114,7 @@ services:
       - RECV_WORKERS=2
       - CONTAINER_NAME=comments_filter_student_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -133,6 +136,7 @@ services:
       - CONTAINER_NAME=posts_filter_score_gte_avg_1
       - WORKER_NUM=1
       - RECV_WORKERS=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
     volumes:
@@ -155,6 +159,7 @@ services:
       - CONTAINER_NAME=posts_filter_score_gte_avg_2
       - WORKER_NUM=2
       - RECV_WORKERS=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
     volumes:
@@ -175,6 +180,7 @@ services:
       - QUEUE_SEND=post_sentiments_queue
       - CONTAINER_NAME=posts_reduce_avg_sentiment_1
       - WORKER_NUM=1
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -192,6 +198,7 @@ services:
       - QUEUE_SEND=post_sentiments_queue
       - CONTAINER_NAME=posts_reduce_avg_sentiment_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -213,6 +220,7 @@ services:
       - QUEUE_SEND=post_avg_sentiments_queue
       - RECV_WORKERS=2
       - CONTAINER_NAME=posts_max_avg_sentiment
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -251,6 +259,7 @@ services:
       - QUEUE_SEND_AVG=posts_for_avg_queue
       - CONTAINER_NAME=posts_filter_columns_2
       - WORKER_NUM=2
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -272,6 +281,7 @@ services:
       - RECV_WORKERS=2
       - CONTAINER_NAME=posts_avg_score
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     networks:
       - rabbitmq
 
@@ -295,6 +305,7 @@ services:
       - SEND_WORKERS=2
       - CONTAINER_NAME=join_comments_with_posts
       - PYTHONHASHSEED=0
+      - LOGLEVEL=DEBUG
     volumes:
       - ./data_base:/data_base
     networks:
@@ -315,7 +326,7 @@ services:
       - HEALTHCHECK_NODE_TIMEOUT=6
       - HEALTHBEAT_DELAY=2
       - VICTORY_TIMEOUT=2
-      - LOGLEVEL=INFO
+      - LOGLEVEL=DEBUG
     depends_on:
       - rabbitmq
     volumes:

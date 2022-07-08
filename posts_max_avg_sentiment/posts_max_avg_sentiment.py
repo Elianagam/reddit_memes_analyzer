@@ -1,10 +1,10 @@
 import os
 import signal
-import logging
 import json
 
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 from atomicwrites import atomic_write
 
 
@@ -46,6 +46,7 @@ class PostsMaxAvgSentiment(MonitoredMixin):
         self.conn_send.close()
 
     def start(self):
+        logger.info("Starting")
         self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 
@@ -69,7 +70,7 @@ class PostsMaxAvgSentiment(MonitoredMixin):
 
     def __end_recv(self, end_msg):
         # Send only post with max avg sentiment
-        logging.info(f" --- [POST MAX AVG SENTIMENT] {self.max_avg}")
+        logger.info(f" --- [POST MAX AVG SENTIMENT] {self.max_avg}")
 
         download = self.__download_image()
         self.conn_send.send(json.dumps(download))
@@ -90,8 +91,6 @@ class PostsMaxAvgSentiment(MonitoredMixin):
         image_url = self.max_avg["url"]
         filename = "data/max_avg_sentiment.jpg"
 
-        print(f"PERNO IMAGEN {image_url}")
-
         response = requests.get(image_url, stream=True)
         if response.status_code == 200:
             response.raw.decode_content = True
@@ -102,7 +101,7 @@ class PostsMaxAvgSentiment(MonitoredMixin):
                 byte_image = bytearray(image.read())
                 encoded = base64.b64encode(byte_image)
                 data = encoded.decode('ascii')
-                logging.info(f"[DOWNLOAD_IMAGE] Success {filename}")
+                logger.info(f"[DOWNLOAD_IMAGE] Success {filename}")
                 return {"image_bytes": data}
         else:
-            logging.error(f"[DOWNLOAD_IMAGE] Fail")
+            logger.error(f"[DOWNLOAD_IMAGE] Fail")

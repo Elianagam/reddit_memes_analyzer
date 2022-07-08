@@ -1,9 +1,9 @@
-import logging
 import signal
 
 import json
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class PostsAvgSentiment(MonitoredMixin):
@@ -31,6 +31,7 @@ class PostsAvgSentiment(MonitoredMixin):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def start(self):
+        logger.info("Starting")
         self.mon_start()
         self.conn_recv.recv(self.__callback, auto_ack=False)
 

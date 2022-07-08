@@ -1,4 +1,3 @@
-import logging
 import os
 import signal
 import json
@@ -8,6 +7,7 @@ from atomicwrites import atomic_write
 
 from common.connection import Connection
 from common.health_check.monitored import MonitoredMixin
+from common.utils import logger
 
 
 class Receiver(MonitoredMixin):
@@ -55,6 +55,7 @@ class Receiver(MonitoredMixin):
         sys.exit(0)
 
     def start(self):
+        logger.info("Starting")
         self.mon_start()
         self.client_conn_recv.recv(self.__callback_post, start_consuming=False, auto_ack=False)
         self.client_conn_recv_c.recv(self.__callback_comment, start_consuming=False, auto_ack=False)
@@ -62,7 +63,6 @@ class Receiver(MonitoredMixin):
         self.conn_recv_students.recv(self.__callback, start_consuming=False, auto_ack=False)
         self.conn_recv_avg.recv(self.__callback, start_consuming=False, auto_ack=False)
         self.conn_recv_image.recv(self.__callback, start_consuming=False, auto_ack=False)
-        print("START CONSUMING...")
         self.conn_status_recv.recv(self.__callback_status, auto_ack=False)
 
     def __load_state(self):
@@ -85,7 +85,7 @@ class Receiver(MonitoredMixin):
     def __callback_post(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
-            print(f"* * * [RECEIVER POST END] {recv}")
+            logger.info(f"* * * [RECEIVER POST END] {recv}")
             for i in range(self.send_workers_posts):
                 key = i + 1
                 worker_key = f"{key}"
@@ -101,7 +101,7 @@ class Receiver(MonitoredMixin):
     def __callback_comment(self, ch, method, properties, body):
         recv = json.loads(body)
         if "end" in recv:
-            print(f"* * * [RECEIVER COMMENTS END] {recv}")
+            logger.info(f"* * * [RECEIVER COMMENTS END] {recv}")
             for i in range(self.send_workers_comments):
                 key = i+1
                 worker_key = f"{key}"
@@ -119,9 +119,9 @@ class Receiver(MonitoredMixin):
 
         if not "image_bytes" in sink_recv:
             if not "end" in sink_recv:
-                print(f"RECV: {sink_recv}")
+                logger.info(f"RECV: {sink_recv}")
         else:
-            print(f"RECV: {sink_recv.keys()}")
+            logger.info(f"RECV: {sink_recv.keys()}")
 
         if not "end" in sink_recv:
             msg_hash = hash(body)
@@ -136,10 +136,10 @@ class Receiver(MonitoredMixin):
                     self.finish[int(sink_recv["end"]) - 1] = True
                 else:
                     self.finish[self.total_end + int(sink_recv["end"])] = True
-                print(f"RECV: {self.finish} ends")
+                logger.info(f"RECV: {self.finish} ends")
                 self.__store_state()
                 if False not in self.finish:
-                    print(f"*** RECV ALL END... FINISH")
+                    logger.info(f"*** RECV ALL END... FINISH")
                     self.client_conn_send.send(json.dumps({"status": "FINISH", "data": self.data_to_send}))
                     self.finish = [False] * self.total_end
                     self.data_to_send = 0
@@ -173,6 +173,6 @@ class Receiver(MonitoredMixin):
                 msg = {"status": "PENDING"}
             else:
                 msg = {"status": "BUSY"}
-        print(f"STATUS: {recv} - response: {msg['status']}")
+        logger.info(f"STATUS: {recv} - response: {msg['status']}")
         self.client_conn_send.send(json.dumps(msg))
         ch.basic_ack(delivery_tag=method.delivery_tag)

@@ -4,9 +4,9 @@ from common.utils import logger
 import pika
 import os
 
-CONNECTION_RETRY_DELAY = int(os.environ.get('CONNECTION_RETRY_DELAY', 5))
-CONNECTION_RETRY_BACKOFF = int(os.environ.get('CONNECTION_RETRY_BACKOFF', 2))
-CONNECTION_RETRIES = int(os.environ.get('CONNECTION_RERIES', 5))
+CONNECTION_RETRY_DELAY = int(os.environ.get('CONNECTION_RETRY_DELAY', 2))
+CONNECTION_RETRY_BACKOFF = int(os.environ.get('CONNECTION_RETRY_BACKOFF', 1.5))
+CONNECTION_RETRIES = int(os.environ.get('CONNECTION_RERIES', 10))
 
 
 @retry(exceptions=AMQPConnectionError, delay=CONNECTION_RETRY_DELAY, backoff=CONNECTION_RETRY_BACKOFF, tries=CONNECTION_RETRIES, logger=logger)
