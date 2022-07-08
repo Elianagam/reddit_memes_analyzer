@@ -40,6 +40,7 @@ class Client:
         self.data_to_recv = 0
         self.data_recved = 0
         self.students_sum = 0
+        self.msgs = []
 
         self.conn_recv_response = Connection(queue_name=response_queue, timeout=1)
         self.conn_status_send = Connection(queue_name=status_check_queue, timeout=1)
@@ -73,18 +74,22 @@ class Client:
     def __callback(self, ch, method, properties, body):
         sink_recv = json.loads(body)
 
-        if "posts_score_avg" in sink_recv:
-            logger.info(f"* * * [AVG_SCORE] {sink_recv}")
-            self.data_recved += 1
-        elif "image_bytes" in sink_recv:
-            logger.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
-            self.data_recved += 1
-        elif "status" in sink_recv:
-            self.__callback_status(ch, method, properties, body)
-        else: 
-            logger.info(f"* * * [STUDENTS] {len(sink_recv)}")
-            self.students_sum += len(sink_recv)
-            self.data_recved += 1
+        msg_hash = hash(body)
+
+        if msg_hash not in self.msgs:
+            self.msgs.append(msg_hash)
+            if "posts_score_avg" in sink_recv:
+                logger.info(f"* * * [AVG_SCORE] {sink_recv}")
+                self.data_recved += 1
+            elif "image_bytes" in sink_recv:
+                logger.info(f"* * * [IMAGE BYTES] {sink_recv.keys()}")
+                self.data_recved += 1
+            elif "status" in sink_recv:
+                self.__callback_status(ch, method, properties, body)
+            else:
+                logger.info(f"* * * [STUDENTS] {len(sink_recv)}")
+                self.students_sum += len(sink_recv)
+                self.data_recved += 1
 
     def __callback_status(self, ch, method, properties, body):
         sink_recv = json.loads(body)
