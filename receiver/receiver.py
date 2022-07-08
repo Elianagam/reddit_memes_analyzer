@@ -74,7 +74,7 @@ class Receiver(MonitoredMixin):
                 if "None" == actual_client:
                     self.actual_client = None
                 else:
-                    self.actual_client = int(actual_client)
+                    self.actual_client = actual_client
 
                 self.finish = json.loads(f.readline().rstrip('\n'))
                 self.msg_hash = json.loads(f.readline())
