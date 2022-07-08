@@ -27,16 +27,10 @@ from common.health_check.constants import (
 )
 from multiprocessing import Process
 from enum import Enum
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.getLevelName(LOG_LEVEL))
+from common.utils import logger, initialize_log
 
 
-logging.basicConfig(
-    format='[%(asctime)s] %(levelname)-8s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-)
-
+initialize_log()
 
 class NodeState(Enum):
     """

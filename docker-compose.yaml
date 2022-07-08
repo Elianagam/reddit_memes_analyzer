@@ -312,6 +312,7 @@ services:
       - HEALTHCHECK_NODE_TIMEOUT=6
       - HEALTHBEAT_DELAY=2
       - VICTORY_TIMEOUT=2
+      - LOGLEVEL=DEBUG
     depends_on:
       - rabbitmq
     volumes:

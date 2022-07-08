@@ -1,20 +1,31 @@
 import os
 import logging
-
 from configparser import ConfigParser
+from common.constants import LOG_LEVEL
 
 
-def initialize_log():
+LOG_LEVEL_OPTS = ('CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'NOTSET', 'WARNING')
+SET_LOG_LEVEL = LOG_LEVEL if LOG_LEVEL in LOG_LEVEL_OPTS else 'INFO'
+
+logger = logging.getLogger(__name__)
+_set = False
+
+
+def initialize_log(log_level=None):
     """
     Python custom logging initialization
     Current timestamp is added to be able to identify in docker
     compose logs the date when the log has arrived
     """
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        level='DEBUG',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
+    # Avoid multiple calls to initialize_log to cause registering multiple logging handlers
+    global _set
+    if not _set:
+        logger.setLevel(level=log_level or SET_LOG_LEVEL)
+        fh = logging.StreamHandler()
+        fh_formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)-8s] %(message)s')
+        fh.setFormatter(fh_formatter)
+        logger.addHandler(fh)
+        _set = True
 
 
 def initialize_config(params=[]):
