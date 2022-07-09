@@ -1,5 +1,8 @@
 # Distribuidos1_tp2
 
+## Informe
+https://docs.google.com/document/d/1AoJ48rdrkH7-alrzyKw7aiJDILR5H-zPKlpB8wBbDZk/edit?usp=sharing
+
 ## Script docker-compose
 
 El script para generar el docker compose pudiendo indicar la cantidad de workers a utilizar para los filtros y para los reducer como tambien la cantidad de datos a enviar en cada chucks se puede correr con el siguiente comando:
